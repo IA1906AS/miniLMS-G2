@@ -6,6 +6,12 @@ dist/
 wheels/
 *.egg-info
 
+# Secrets / local environment
+.env
+.env.*
+*.pem
+*.key
+
 # Virtual environments
 .venv
 
