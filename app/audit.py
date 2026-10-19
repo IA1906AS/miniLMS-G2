@@ -5,6 +5,37 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+# Đường dẫn mặc định, create_app() gán lại theo config AUDIT_LOG_PATH để
+# services.py ghi audit mà không cần import flask (lớp 4 không phụ thuộc flask).
+_default_log_path: str = "audit.log"
+
+
+def configure(audit_log_path: str) -> None:
+    global _default_log_path
+    _default_log_path = str(audit_log_path)
+
+
+def log_event(
+    actor_id: str | None,
+    action: str,
+    resource: str,
+    result: str,
+    old_score: float | None = None,
+    new_score: float | None = None,
+    **extra: Any,
+) -> None:
+    """Ghi audit theo đường dẫn đã cấu hình (dùng từ services.py)."""
+    log_audit(
+        _default_log_path,
+        actor_id,
+        action,
+        resource,
+        result,
+        old_score,
+        new_score,
+        **extra,
+    )
+
 
 def log_audit(
     audit_log_path: str,

@@ -6,6 +6,7 @@ from typing import Any
 
 from flask import Flask
 
+from app.audit import configure as configure_audit
 from app.errors import register_error_handlers
 from app.gate import register_gate
 from app.routes import bp
@@ -58,13 +59,16 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     store = init_store(seed_path=seed_file)
     app.config["STORE"] = store
 
-    # 6. Register error handlers (Lớp 6)
+    # 6. Cấu hình đường dẫn audit cho services.py (lớp 4 không import flask)
+    configure_audit(app.config.get("AUDIT_LOG_PATH", "audit.log"))
+
+    # 7. Register error handlers (Lớp 6)
     register_error_handlers(app)
 
-    # 7. Register deny-by-default before_request gate (Lớp 2)
+    # 8. Register deny-by-default before_request gate (Lớp 2)
     register_gate(app)
 
-    # 8. Register routes
+    # 9. Register routes
     app.register_blueprint(bp)
 
     return app
