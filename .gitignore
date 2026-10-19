@@ -9,6 +9,7 @@ wheels/
 # Secrets / local environment
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 
@@ -20,4 +21,5 @@ wheels/
 .coverage.*
 htmlcov/
 .pytest_cache/
-
+# Logs
+*.log
