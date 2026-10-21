@@ -4,13 +4,13 @@ Router mỏng: mọi kiểm tra quyền nằm ở lớp 2 (gate), lớp 3 (guard
 (services) để gỡ một lớp vẫn còn lớp khác chặn.
 
 Public endpoints (không cần JWT):
-  POST /auth/login          - Đăng nhập, trả về accessToken
-  POST /auth/register       - Đăng ký (STUDENT hoặc INSTRUCTOR)
-  POST /auth/forgot-password - Yêu cầu reset token (giả lập gửi email)
-  POST /auth/reset-password - Đặt mật khẩu mới bằng reset token
+  POST /auth/login                   - Đăng nhập, trả về accessToken
+  POST /auth/register                - Đăng ký (STUDENT hoặc INSTRUCTOR)
 
 Protected endpoints (cần JWT):
   GET  /me                           - Xem thông tin bản thân
+  POST /auth/reset-password          - Đặt lại mật khẩu (đã đăng nhập)
+  POST /auth/admin/reset-password    - ADMIN đặt lại mật khẩu cho bất kỳ ai
   POST /auth/change-password         - Đổi mật khẩu (biết mật khẩu cũ)
   POST /auth/admin/users             - ADMIN tạo user mới (kể cả ADMIN)
   GET  /courses/<id>/grades          - Xem điểm
@@ -30,8 +30,8 @@ from app.schemas import parse_score_update
 from app.services import authorize_update, get_grades, update_grade
 from app.user_services import (
     admin_create_user,
+    admin_reset_password,
     change_password,
-    forgot_password,
     register_user,
     reset_password,
 )
@@ -105,42 +105,52 @@ def auth_register() -> tuple[Any, int]:
 
 
 # ---------------------------------------------------------------------------
-# Auth: Forgot password
-# ---------------------------------------------------------------------------
-
-
-@bp.route("/auth/forgot-password", methods=["POST"])
-def auth_forgot_password() -> tuple[Any, int]:
-    """Yêu cầu reset token để đặt lại mật khẩu.
-
-    Body: {email}
-    Luôn trả về 200 để tránh user enumeration.
-    """
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        raise ValidationError("Request body must be a JSON object")
-
-    result = forgot_password(email=data.get("email"))
-    return jsonify(result), 200
-
-
-# ---------------------------------------------------------------------------
-# Auth: Reset password (dùng token từ forgot-password)
+# Auth: Reset password (cần JWT — đã login, hoặc ADMIN đặt cho tài khoản khác)
 # ---------------------------------------------------------------------------
 
 
 @bp.route("/auth/reset-password", methods=["POST"])
 def auth_reset_password() -> tuple[Any, int]:
-    """Đặt lại mật khẩu bằng reset token.
+    """Đặt lại mật khẩu khi đã đăng nhập.
 
-    Body: {resetToken, newPassword}
+    Body: {newPassword}
+    ADMIN có thể truyền thêm: {userId hoặc email, newPassword (tùy chọn)}
+    Header: Authorization: Bearer <token>
     """
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         raise ValidationError("Request body must be a JSON object")
 
     result = reset_password(
-        token=data.get("resetToken"),
+        actor=g.current_user,
+        new_password=data.get("newPassword"),
+        target_user_id=data.get("userId"),
+        target_email=data.get("email"),
+    )
+    return jsonify(result), 200
+
+
+# ---------------------------------------------------------------------------
+# Admin: Reset password cho bất kỳ tài khoản nào (ADMIN only, cần JWT)
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/auth/admin/reset-password", methods=["POST"])
+@require_role("ADMIN")
+def auth_admin_reset_password() -> tuple[Any, int]:
+    """ADMIN đặt lại mật khẩu cho bất kỳ tài khoản nào.
+
+    Body: {userId hoặc email, newPassword (tùy chọn)}
+    Header: Authorization: Bearer <ADMIN token>
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise ValidationError("Request body must be a JSON object")
+
+    result = admin_reset_password(
+        actor=g.current_user,
+        target_user_id=data.get("userId"),
+        target_email=data.get("email"),
         new_password=data.get("newPassword"),
     )
     return jsonify(result), 200

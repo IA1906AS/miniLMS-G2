@@ -2,15 +2,14 @@
 
 Bao gồm các kiểm tra bảo mật:
 - R*: Register tests
-- FP*: Forgot-password tests
-- RP*: Reset-password tests
+- RP*: Reset-password tests (sau khi login)
+- ARP*: Admin reset-password tests (cho bất kỳ tài khoản nào)
 - CP*: Change-password tests
 - AC*: Admin create user tests
 """
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 import pytest
@@ -185,165 +184,227 @@ class TestRegister:
 
 
 # ===========================================================================
-# Forgot-password tests
-# ===========================================================================
-
-
-class TestForgotPassword:
-    def test_fp1_valid_email_returns_token(self, client):
-        """FP1: Email hợp lệ và tồn tại → 200, resetToken không None."""
-        res = client.post(
-            "/auth/forgot-password",
-            json={"email": "chi.sv@lms.test"},
-        )
-        assert res.status_code == 200
-        body = res.get_json()
-        assert "message" in body
-        assert body["resetToken"] is not None
-        assert body["expiresIn"] == 900  # 15 phút
-
-    def test_fp2_unknown_email_same_response(self, client):
-        """FP2: Email không tồn tại → cùng 200 (tránh user enumeration)."""
-        res = client.post(
-            "/auth/forgot-password",
-            json={"email": "unknown@example.com"},
-        )
-        assert res.status_code == 200
-        body = res.get_json()
-        # Vẫn trả về message nhưng resetToken là None
-        assert "message" in body
-        assert body.get("resetToken") is None
-
-    def test_fp3_response_bodies_same_structure(self, client):
-        """FP3: Response structure giống nhau cho email tồn tại và không tồn tại."""
-        res_exist = client.post(
-            "/auth/forgot-password",
-            json={"email": "chi.sv@lms.test"},
-        )
-        res_unknown = client.post(
-            "/auth/forgot-password",
-            json={"email": "notexist@example.com"},
-        )
-        body_exist = res_exist.get_json()
-        body_unknown = res_unknown.get_json()
-        # Cùng keys
-        assert set(body_exist.keys()) == set(body_unknown.keys())
-
-    def test_fp4_public_no_token_needed(self, client):
-        """FP4: POST /auth/forgot-password không cần JWT."""
-        res = client.post(
-            "/auth/forgot-password",
-            json={"email": "chi.sv@lms.test"},
-        )
-        assert res.status_code == 200
-
-    def test_fp5_invalid_body_returns_400(self, client):
-        """FP5: Body không phải JSON → 400."""
-        res = client.post("/auth/forgot-password", data="plain text")
-        assert res.status_code == 400
-
-
-# ===========================================================================
-# Reset-password tests
+# Reset-password tests (sau khi login, không reset được khi chưa login)
 # ===========================================================================
 
 
 class TestResetPassword:
-    def _get_reset_token(self, client, email: str = "chi.sv@lms.test") -> str:
-        """Helper: lấy reset token từ forgot-password."""
-        res = client.post("/auth/forgot-password", json={"email": email})
-        return res.get_json()["resetToken"]
-
-    def test_rp1_valid_token_resets_password(self, client):
-        """RP1: Token hợp lệ + mật khẩu mới hợp lệ → 200, có thể login ngay."""
-        token = self._get_reset_token(client)
+    def test_rp1_reset_password_requires_login(self, client):
+        """RP1: POST /auth/reset-password không có JWT → 401."""
         res = client.post(
             "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "NewP@ss123"},
+            json={"newPassword": "NewP@ss123"},
+        )
+        assert res.status_code == 401
+
+    def test_rp2_login_and_reset_password_success(self, client):
+        """RP2: Đăng nhập bằng tài khoản và reset pass thành công → 200."""
+        token = _login(client, "chi.sv@lms.test")
+        res = client.post(
+            "/auth/reset-password",
+            json={"newPassword": "NewP@ss123"},
+            headers=_auth_header(token),
         )
         assert res.status_code == 200
         assert "message" in res.get_json()
 
-        # Verify: có thể login với mật khẩu mới
-        login_res = client.post(
-            "/auth/login",
-            json={"email": "chi.sv@lms.test", "password": "NewP@ss123"},
-        )
-        assert login_res.status_code == 200
-
-    def test_rp2_old_password_no_longer_works(self, client):
-        """RP2: Sau reset, mật khẩu cũ không còn hoạt động."""
-        token = self._get_reset_token(client)
-        client.post(
-            "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "NewP@ss123"},
-        )
-
+        # Login với mật khẩu cũ thất bại
         login_old = client.post(
             "/auth/login",
             json={"email": "chi.sv@lms.test", "password": "Lms@2026"},
         )
         assert login_old.status_code == 401
 
-    def test_rp3_token_one_time_use(self, client):
-        """RP3: Reset token chỉ dùng được một lần."""
-        token = self._get_reset_token(client)
-        # Lần 1: thành công
+        # Login với mật khẩu mới thành công
+        login_new = client.post(
+            "/auth/login",
+            json={"email": "chi.sv@lms.test", "password": "NewP@ss123"},
+        )
+        assert login_new.status_code == 200
+        assert "accessToken" in login_new.get_json()
+
+    def test_rp3_weak_new_password_rejected(self, client):
+        """RP3: Mật khẩu mới không đủ mạnh → 400."""
+        token = _login(client, "chi.sv@lms.test")
+        res = client.post(
+            "/auth/reset-password",
+            json={"newPassword": "weak"},
+            headers=_auth_header(token),
+        )
+        assert res.status_code == 400
+
+    def test_rp4_missing_new_password_rejected(self, client):
+        """RP4: Thiếu newPassword khi tự reset → 400."""
+        token = _login(client, "chi.sv@lms.test")
+        res = client.post(
+            "/auth/reset-password",
+            json={},
+            headers=_auth_header(token),
+        )
+        assert res.status_code == 400
+
+    def test_rp5_student_cannot_reset_other_user_password(self, client):
+        """RP5: User thường không được reset mật khẩu của tài khoản khác → 403."""
+        token = _login(client, "chi.sv@lms.test")
+        # Thử truyền userId của user khác
         res1 = client.post(
             "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "NewP@ss123"},
+            json={"userId": "u2", "newPassword": "NewP@ss123"},
+            headers=_auth_header(token),
         )
-        assert res1.status_code == 200
+        assert res1.status_code == 403
 
-        # Lần 2: token đã hết hạn/bị xóa
+        # Thử truyền email của user khác
         res2 = client.post(
             "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "AnotherP@ss1"},
+            json={"email": "an.gv@lms.test", "newPassword": "NewP@ss123"},
+            headers=_auth_header(token),
         )
-        assert res2.status_code == 400
-        assert res2.get_json() == {"error": "INVALID_RESET_TOKEN"}
+        assert res2.status_code == 403
 
-    def test_rp4_invalid_token_rejected(self, client):
-        """RP4: Token giả → 400 INVALID_RESET_TOKEN."""
+    def test_rp6_invalid_json_body_returns_400(self, client):
+        """RP6: Body không phải JSON → 400."""
+        token = _login(client, "chi.sv@lms.test")
         res = client.post(
             "/auth/reset-password",
-            json={"resetToken": "fakefakefake12345", "newPassword": "NewP@ss123"},
-        )
-        assert res.status_code == 400
-        assert res.get_json() == {"error": "INVALID_RESET_TOKEN"}
-
-    def test_rp5_expired_token_rejected(self, client, app):
-        """RP5: Token đã hết TTL → 410 TOKEN_EXPIRED."""
-        store = app.config["STORE"]
-        token = "expired_test_token_xyz"
-        # Lưu token với expires_at đã qua
-        store.store_reset_token(token, "chi.sv@lms.test", expires_at=time.time() - 1)
-
-        res = client.post(
-            "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "NewP@ss123"},
-        )
-        assert res.status_code == 410
-        assert res.get_json() == {"error": "TOKEN_EXPIRED"}
-
-    def test_rp6_weak_new_password_rejected(self, client):
-        """RP6: Mật khẩu mới yếu → 400."""
-        token = self._get_reset_token(client)
-        res = client.post(
-            "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "weak"},
+            data="not a json",
+            headers=_auth_header(token),
         )
         assert res.status_code == 400
 
-    def test_rp7_public_no_token_needed(self, client):
-        """RP7: POST /auth/reset-password không cần JWT."""
-        token = self._get_reset_token(client)
-        # Gọi không có Authorization header — đây là endpoint public
+
+# ===========================================================================
+# Admin reset password tests (Admin có quyền reset/đặt password cho tất cả tài khoản)
+# ===========================================================================
+
+
+class TestAdminResetPassword:
+    def test_arp1_admin_resets_student_password_by_id(self, client):
+        """ARP1: ADMIN reset mật khẩu cho user theo userId → 200."""
+        admin_token = _login(client, "admin@lms.test")
         res = client.post(
-            "/auth/reset-password",
-            json={"resetToken": token, "newPassword": "NewP@ss123"},
+            "/auth/admin/reset-password",
+            json={"userId": "u2", "newPassword": "AdminSetP@ss1"},
+            headers=_auth_header(admin_token),
         )
         assert res.status_code == 200
+        body = res.get_json()
+        assert body["userId"] == "u2"
+        assert body["email"] == "an.gv@lms.test"
+
+        # Đăng nhập bằng mật khẩu mới do Admin đặt
+        login_res = client.post(
+            "/auth/login",
+            json={"email": "an.gv@lms.test", "password": "AdminSetP@ss1"},
+        )
+        assert login_res.status_code == 200
+
+    def test_arp2_admin_resets_password_by_email(self, client):
+        """ARP2: ADMIN reset mật khẩu theo email → 200."""
+        admin_token = _login(client, "admin@lms.test")
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"email": "chi.sv@lms.test", "newPassword": "AdminSetP@ss2"},
+            headers=_auth_header(admin_token),
+        )
+        assert res.status_code == 200
+
+        login_res = client.post(
+            "/auth/login",
+            json={"email": "chi.sv@lms.test", "password": "AdminSetP@ss2"},
+        )
+        assert login_res.status_code == 200
+
+    def test_arp3_admin_reset_auto_generates_password_if_omitted(self, client):
+        """ARP3: ADMIN reset không truyền mật khẩu mới → tự sinh mật khẩu tạm thời."""
+        admin_token = _login(client, "admin@lms.test")
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"email": "dung.sv@lms.test"},
+            headers=_auth_header(admin_token),
+        )
+        assert res.status_code == 200
+        body = res.get_json()
+        assert "newPassword" in body
+        generated_password = body["newPassword"]
+
+        # Đăng nhập bằng mật khẩu tạm do hệ thống sinh
+        login_res = client.post(
+            "/auth/login",
+            json={"email": "dung.sv@lms.test", "password": generated_password},
+        )
+        assert login_res.status_code == 200
+
+    def test_arp4_instructor_cannot_call_admin_reset(self, client):
+        """ARP4: INSTRUCTOR gọi /auth/admin/reset-password → 403."""
+        inst_token = _login(client, "an.gv@lms.test")
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"userId": "u2", "newPassword": "NewP@ss123"},
+            headers=_auth_header(inst_token),
+        )
+        assert res.status_code == 403
+
+    def test_arp5_student_cannot_call_admin_reset(self, client):
+        """ARP5: STUDENT gọi /auth/admin/reset-password → 403."""
+        student_token = _login(client, "chi.sv@lms.test")
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"userId": "u1", "newPassword": "NewP@ss123"},
+            headers=_auth_header(student_token),
+        )
+        assert res.status_code == 403
+
+    def test_arp6_admin_reset_requires_jwt(self, client):
+        """ARP6: Gọi /auth/admin/reset-password không có JWT → 401."""
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"userId": "u1", "newPassword": "NewP@ss123"},
+        )
+        assert res.status_code == 401
+
+    def test_arp7_admin_reset_target_not_found(self, client):
+        """ARP7: Tài khoản mục tiêu không tồn tại → 404."""
+        admin_token = _login(client, "admin@lms.test")
+        res1 = client.post(
+            "/auth/admin/reset-password",
+            json={"userId": "non_existent_id", "newPassword": "NewP@ss123"},
+            headers=_auth_header(admin_token),
+        )
+        assert res1.status_code == 404
+
+        res2 = client.post(
+            "/auth/admin/reset-password",
+            json={"email": "notfound@lms.test", "newPassword": "NewP@ss123"},
+            headers=_auth_header(admin_token),
+        )
+        assert res2.status_code == 404
+
+    def test_arp8_admin_reset_missing_target(self, client):
+        """ARP8: Không truyền userId hay email → 400."""
+        admin_token = _login(client, "admin@lms.test")
+        res = client.post(
+            "/auth/admin/reset-password",
+            json={"newPassword": "NewP@ss123"},
+            headers=_auth_header(admin_token),
+        )
+        assert res.status_code == 400
+
+    def test_arp9_admin_reset_via_reset_password_endpoint(self, client):
+        """ARP9: ADMIN cũng có thể reset qua endpoint /auth/reset-password."""
+        admin_token = _login(client, "admin@lms.test")
+        res = client.post(
+            "/auth/reset-password",
+            json={"email": "em.sv@lms.test", "newPassword": "AdminSetP@ss3"},
+            headers=_auth_header(admin_token),
+        )
+        assert res.status_code == 200
+
+        login_res = client.post(
+            "/auth/login",
+            json={"email": "em.sv@lms.test", "password": "AdminSetP@ss3"},
+        )
+        assert login_res.status_code == 200
 
 
 # ===========================================================================

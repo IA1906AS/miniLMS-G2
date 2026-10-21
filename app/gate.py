@@ -19,8 +19,6 @@ def register_gate(app: Flask) -> None:
         {
             "/auth/login",
             "/auth/register",
-            "/auth/forgot-password",
-            "/auth/reset-password",
         }
     )
 

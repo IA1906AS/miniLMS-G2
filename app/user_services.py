@@ -1,4 +1,4 @@
-"""User management services: register, forgot/reset password, change password.
+"""User management services: register, reset password, change password.
 
 File này KHÔNG import flask. Mọi lỗi được ném qua app.errors để
 routes và gate vẫn bắt và trả về JSON chuẩn.
@@ -6,19 +6,12 @@ routes và gate vẫn bắt và trả về JSON chuẩn.
 Quy tắc mật khẩu:
   - Tối thiểu 8 ký tự
   - Có ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số, 1 ký tự đặc biệt
-
-Reset token:
-  - Tạo bằng secrets.token_urlsafe(32) (256-bit, URL-safe)
-  - TTL mặc định: 15 phút
-  - One-time use: bị xóa ngay sau khi dùng
-  - In-memory: mất khi restart (phù hợp với kiến trúc hiện tại)
 """
 
 from __future__ import annotations
 
 import re
 import secrets
-import time
 from typing import Any
 
 from app.audit import log_event
@@ -37,7 +30,6 @@ from app.store import Store, get_store
 # ---------------------------------------------------------------------------
 
 ALLOWED_SELF_REGISTER_ROLES = frozenset({"STUDENT", "INSTRUCTOR"})
-RESET_TOKEN_TTL_SECONDS = 15 * 60  # 15 phút
 
 _PASSWORD_MIN_LENGTH = 8
 _RE_UPPER = re.compile(r"[A-Z]")
@@ -131,97 +123,122 @@ def register_user(
 
 
 # ---------------------------------------------------------------------------
-# 2. Forgot password — generate reset token
-# ---------------------------------------------------------------------------
-
-
-def forgot_password(
-    email: Any,
-    store: Store | None = None,
-    ttl_seconds: int = RESET_TOKEN_TTL_SECONDS,
-) -> dict[str, Any]:
-    """Tạo reset token cho email đã đăng ký.
-
-    Luôn trả về response giống nhau để tránh user enumeration.
-    Token chỉ được trả về trong response (thực tế sẽ gửi qua email).
-    """
-    if store is None:
-        store = get_store()
-
-    _validate_email(email)  # Validate format nhưng không tiết lộ tồn tại hay không
-    normalized = email.strip().lower()
-
-    # Generate token bất kể email có tồn tại không (tránh timing oracle)
-    token = secrets.token_urlsafe(32)
-    expires_at = time.time() + ttl_seconds
-
-    user = store.get_user_by_email(normalized)
-    if user is not None:
-        # Chỉ lưu token nếu email tồn tại
-        store.store_reset_token(token, normalized, expires_at)
-        log_event(
-            actor_id=user["id"],
-            action="FORGOT_PASSWORD",
-            resource=f"user:{user['id']}",
-            result="ALLOW",
-        )
-        # Trong hệ thống thực tế: gửi email chứa token
-        # Ở đây trả về token trong response để tiện test (development mode)
-        return {
-            "message": "Nếu email tồn tại, link đặt lại mật khẩu đã được gửi",
-            "resetToken": token,  # Dev only — trong production, chỉ gửi qua email
-            "expiresIn": ttl_seconds,
-        }
-
-    # Email không tồn tại: trả về response giống hệt (tránh user enumeration)
-    return {
-        "message": "Nếu email tồn tại, link đặt lại mật khẩu đã được gửi",
-        "resetToken": None,  # None nghĩa là email không tồn tại
-        "expiresIn": ttl_seconds,
-    }
-
-
-# ---------------------------------------------------------------------------
-# 3. Reset password — dùng reset token để đặt mật khẩu mới
+# 3. Reset password — đặt lại mật khẩu khi đã đăng nhập hoặc do ADMIN thực hiện
 # ---------------------------------------------------------------------------
 
 
 def reset_password(
-    token: Any,
+    actor: dict[str, Any],
     new_password: Any,
+    target_user_id: Any = None,
+    target_email: Any = None,
     store: Store | None = None,
-) -> dict[str, str]:
-    """Đặt mật khẩu mới bằng reset token.
+) -> dict[str, Any]:
+    """Đặt lại mật khẩu cho tài khoản.
 
-    Token bị xóa ngay sau khi dùng (one-time use).
+    Quy tắc:
+    - Phải đăng nhập (actor từ g.current_user do gate xác thực).
+    - User thường (STUDENT/INSTRUCTOR): chỉ reset mật khẩu cho chính mình.
+    - ADMIN: có quyền reset và đặt mật khẩu cho bất kỳ tài khoản nào.
+    - Nếu là ADMIN và không truyền new_password, hệ thống tự sinh mật khẩu tạm thời.
     """
     if store is None:
         store = get_store()
 
-    if not isinstance(token, str) or not token.strip():
-        raise ValidationError("Reset token là bắt buộc")
+    # Xác định user mục tiêu
+    target_user: dict[str, Any] | None = None
 
-    _validate_password_strength(new_password)
+    if target_user_id or target_email:
+        # Nếu chỉ định tài khoản khác, phải có role ADMIN
+        is_same_user = False
+        if target_user_id and str(target_user_id).strip() == actor.get("id"):
+            is_same_user = True
+        if (
+            target_email
+            and str(target_email).strip().lower() == str(actor.get("email")).lower()
+        ):
+            is_same_user = True
 
-    now = time.time()
-    # consume_reset_token ném TokenInvalidError / TokenExpiredError nếu không hợp lệ
-    email = store.consume_reset_token(token.strip(), now)
+        if not is_same_user and actor.get("role") != "ADMIN":
+            raise Forbidden("Chỉ ADMIN mới có quyền reset mật khẩu cho tài khoản khác")
 
-    user = store.get_user_by_email(email)
-    if user is None:
-        # Không nên xảy ra nếu token hợp lệ, nhưng giữ fail-closed
-        raise NotFound("Tài khoản không còn tồn tại")
+        if target_user_id:
+            target_user = store.get_user_by_id(str(target_user_id).strip())
+        elif target_email:
+            target_user = store.get_user_by_email(str(target_email).strip().lower())
+
+        if target_user is None:
+            raise NotFound("Tài khoản không tồn tại")
+    else:
+        # Tự reset mật khẩu cho chính mình
+        target_user = store.get_user_by_id(actor["id"])
+        if target_user is None:
+            raise NotFound("Tài khoản không tồn tại")
+
+    # Xử lý mật khẩu mới
+    if new_password is None or (
+        isinstance(new_password, str) and not new_password.strip()
+    ):
+        if actor.get("role") == "ADMIN" and target_user["id"] != actor.get("id"):
+            # ADMIN reset nhưng không truyền mật khẩu cụ thể -> tự sinh mật khẩu tạm
+            new_password = "Reset@" + secrets.token_hex(4) + "A1"
+        else:
+            raise ValidationError("Mật khẩu mới là bắt buộc")
+    else:
+        _validate_password_strength(new_password)
 
     new_hash = hash_password(new_password)
-    store.update_password(user["id"], new_hash)
+    store.update_password(target_user["id"], new_hash)
 
+    is_admin_action = actor.get("role") == "ADMIN" and target_user["id"] != actor.get(
+        "id"
+    )
+    action_name = "ADMIN_RESET_PASSWORD" if is_admin_action else "RESET_PASSWORD"
     log_event(
-        actor_id=user["id"],
-        action="RESET_PASSWORD",
-        resource=f"user:{user['id']}",
+        actor_id=actor["id"],
+        action=action_name,
+        resource=f"user:{target_user['id']}",
         result="ALLOW",
     )
-    return {"message": "Mật khẩu đã được đặt lại thành công"}
+
+    result: dict[str, Any] = {
+        "message": "Mật khẩu đã được đặt lại thành công",
+        "userId": target_user["id"],
+        "email": target_user["email"],
+    }
+    if is_admin_action:
+        result["newPassword"] = new_password
+
+    return result
+
+
+def admin_reset_password(
+    actor: dict[str, Any],
+    target_user_id: Any = None,
+    target_email: Any = None,
+    new_password: Any = None,
+    store: Store | None = None,
+) -> dict[str, Any]:
+    """ADMIN đặt lại mật khẩu cho bất kỳ tài khoản nào.
+
+    Kiểm tra quyền ADMIN ở service layer (defense-in-depth).
+    """
+    if store is None:
+        store = get_store()
+
+    if actor.get("role") != "ADMIN":
+        raise Forbidden("Chỉ ADMIN mới có quyền reset mật khẩu cho tài khoản khác")
+
+    if not target_user_id and not target_email:
+        raise ValidationError("Cần cung cấp userId hoặc email của tài khoản cần reset")
+
+    return reset_password(
+        actor=actor,
+        new_password=new_password,
+        target_user_id=target_user_id,
+        target_email=target_email,
+        store=store,
+    )
 
 
 # ---------------------------------------------------------------------------
