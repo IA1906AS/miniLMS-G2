@@ -14,10 +14,20 @@ def register_gate(app: Flask) -> None:
     allowlisted endpoint: POST /auth/login.
     """
 
+    # Public endpoints that do NOT require authentication
+    _PUBLIC_ENDPOINTS: frozenset[str] = frozenset(
+        {
+            "/auth/login",
+            "/auth/register",
+            "/auth/forgot-password",
+            "/auth/reset-password",
+        }
+    )
+
     @app.before_request
     def gate_check() -> None:
-        # Allowlist duy nhất: POST /auth/login
-        if request.method == "POST" and request.path == "/auth/login":
+        # Allowlist: các endpoint công khai không cần JWT
+        if request.method == "POST" and request.path in _PUBLIC_ENDPOINTS:
             return None
 
         auth_header = request.headers.get("Authorization", "")

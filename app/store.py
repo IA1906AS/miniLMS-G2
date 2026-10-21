@@ -15,6 +15,10 @@ class Store:
         self.enrollments: list[dict[str, Any]] = []
         # email -> {"count": int, "locked_until": float}
         self.failed_logins: dict[str, dict[str, Any]] = {}
+        # token -> {"email": str, "expires_at": float}
+        self.reset_tokens: dict[str, dict[str, Any]] = {}
+        # Counter for auto-generating user IDs
+        self._user_counter: int = 0
 
     def load_seed(self, seed_path: str = "seed.json") -> None:
         path = Path(seed_path)
@@ -46,6 +50,14 @@ class Store:
             }
             self.users[u["id"]] = user_entry
             self.users_by_email[u["email"].strip().lower()] = u["id"]
+            # Track max numeric suffix for ID generation
+            if u["id"].startswith("u"):
+                try:
+                    num = int(u["id"][1:])
+                    if num > self._user_counter:
+                        self._user_counter = num
+                except ValueError:
+                    pass
 
         # 2. Courses
         self.courses.clear()
@@ -140,6 +152,74 @@ class Store:
     def record_login_success(self, email: str) -> None:
         normalized = email.strip().lower()
         self.failed_logins.pop(normalized, None)
+
+    # -----------------------------------------------------------------
+    # User registration & management
+    # -----------------------------------------------------------------
+
+    def create_user(
+        self, email: str, password_hash: str, role: str
+    ) -> dict[str, Any]:
+        """Create a new user and return the actor dict (without password_hash)."""
+        self._user_counter += 1
+        new_id = f"u{self._user_counter}"
+        # Guard against collision (edge case if seed used non-standard IDs)
+        while new_id in self.users:
+            self._user_counter += 1
+            new_id = f"u{self._user_counter}"
+
+        user_entry: dict[str, Any] = {
+            "id": new_id,
+            "email": email.strip().lower(),
+            "role": role,
+            "password_hash": password_hash,
+        }
+        self.users[new_id] = user_entry
+        self.users_by_email[email.strip().lower()] = new_id
+        return {
+            "id": new_id,
+            "email": user_entry["email"],
+            "role": role,
+        }
+
+    def update_password(self, user_id: str, new_password_hash: str) -> None:
+        """Update password_hash for an existing user."""
+        user = self.users.get(user_id)
+        if user is None:
+            raise KeyError(f"User not found: {user_id}")
+        user["password_hash"] = new_password_hash
+
+    # -----------------------------------------------------------------
+    # Password reset token management
+    # -----------------------------------------------------------------
+
+    def store_reset_token(
+        self, token: str, email: str, expires_at: float
+    ) -> None:
+        """Save a password-reset token (in-memory, TTL-based)."""
+        self.reset_tokens[token] = {
+            "email": email.strip().lower(),
+            "expires_at": expires_at,
+        }
+
+    def consume_reset_token(
+        self, token: str, now: float
+    ) -> str:
+        """Validate and consume a reset token; returns the associated email.
+
+        Raises TokenInvalidError if not found, TokenExpiredError if expired.
+        """
+        from app.errors import TokenExpiredError, TokenInvalidError
+
+        record = self.reset_tokens.get(token)
+        if record is None:
+            raise TokenInvalidError("Reset token is invalid or already used")
+        if now >= record["expires_at"]:
+            self.reset_tokens.pop(token, None)
+            raise TokenExpiredError("Reset token has expired")
+        # Consume (one-time use)
+        self.reset_tokens.pop(token, None)
+        return str(record["email"])
 
 
 _current_store: Store | None = None

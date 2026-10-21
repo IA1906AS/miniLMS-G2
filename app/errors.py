@@ -47,6 +47,21 @@ class AccountLocked(AppError):
     error_code: str = "ACCOUNT_LOCKED"
 
 
+class ConflictError(AppError):
+    status_code: int = 409
+    error_code: str = "CONFLICT"
+
+
+class TokenExpiredError(AppError):
+    status_code: int = 410
+    error_code: str = "TOKEN_EXPIRED"
+
+
+class TokenInvalidError(AppError):
+    status_code: int = 400
+    error_code: str = "INVALID_RESET_TOKEN"
+
+
 def _record_audit_403() -> None:
     try:
         from app.audit import log_audit
@@ -88,6 +103,10 @@ def register_error_handlers(app: Flask) -> None:
             error_code = "NOT_FOUND"
         elif code == 405:
             error_code = "METHOD_NOT_ALLOWED"
+        elif code == 409:
+            error_code = "CONFLICT"
+        elif code == 410:
+            error_code = "TOKEN_EXPIRED"
         elif code == 429:
             error_code = "ACCOUNT_LOCKED"
         else:
