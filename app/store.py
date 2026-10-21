@@ -157,9 +157,7 @@ class Store:
     # User registration & management
     # -----------------------------------------------------------------
 
-    def create_user(
-        self, email: str, password_hash: str, role: str
-    ) -> dict[str, Any]:
+    def create_user(self, email: str, password_hash: str, role: str) -> dict[str, Any]:
         """Create a new user and return the actor dict (without password_hash)."""
         self._user_counter += 1
         new_id = f"u{self._user_counter}"
@@ -193,18 +191,14 @@ class Store:
     # Password reset token management
     # -----------------------------------------------------------------
 
-    def store_reset_token(
-        self, token: str, email: str, expires_at: float
-    ) -> None:
+    def store_reset_token(self, token: str, email: str, expires_at: float) -> None:
         """Save a password-reset token (in-memory, TTL-based)."""
         self.reset_tokens[token] = {
             "email": email.strip().lower(),
             "expires_at": expires_at,
         }
 
-    def consume_reset_token(
-        self, token: str, now: float
-    ) -> str:
+    def consume_reset_token(self, token: str, now: float) -> str:
         """Validate and consume a reset token; returns the associated email.
 
         Raises TokenInvalidError if not found, TokenExpiredError if expired.

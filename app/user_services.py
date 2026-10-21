@@ -21,8 +21,8 @@ import secrets
 import time
 from typing import Any
 
-from app.auth import hash_password, verify_password
 from app.audit import log_event
+from app.auth import hash_password, verify_password
 from app.errors import (
     ConflictError,
     Forbidden,
@@ -69,9 +69,7 @@ def _validate_password_strength(password: Any) -> str:
     if not isinstance(password, str):
         raise ValidationError("Mật khẩu phải là chuỗi")
     if len(password) < _PASSWORD_MIN_LENGTH:
-        raise ValidationError(
-            f"Mật khẩu phải có ít nhất {_PASSWORD_MIN_LENGTH} ký tự"
-        )
+        raise ValidationError(f"Mật khẩu phải có ít nhất {_PASSWORD_MIN_LENGTH} ký tự")
     if not _RE_UPPER.search(password):
         raise ValidationError("Mật khẩu phải có ít nhất 1 chữ hoa")
     if not _RE_LOWER.search(password):
@@ -85,9 +83,7 @@ def _validate_password_strength(password: Any) -> str:
 
 def _validate_role(role: Any, allowed: frozenset[str]) -> str:
     if not isinstance(role, str) or role not in allowed:
-        raise ValidationError(
-            f"Role không hợp lệ. Giá trị cho phép: {sorted(allowed)}"
-        )
+        raise ValidationError(f"Role không hợp lệ. Giá trị cho phép: {sorted(allowed)}")
     return role
 
 
