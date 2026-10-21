@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập{% endblock %}
+
+{% block content %}
+<section class="auth">
+  <div class="auth-card">
+    <h1>Đăng nhập</h1>
+    <p class="muted">Dùng tài khoản LMS của bạn để xem trang tài khoản và điểm số.</p>
+
+    {% if error %}
+    <p class="alert" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('web.login', next=request.args.get('next')) }}" class="form">
+      <label for="email">Email</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        value="{{ email }}"
+        required
+        autofocus
+      />
+
+      <label for="password">Mật khẩu</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        required
+      />
+
+      <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+    </form>
+
+    <p class="muted small">Trang đăng ký và đặt lại mật khẩu do phần API đảm nhiệm.</p>
+  </div>
+
+  <aside class="auth-side">
+    <h2>Tài khoản demo</h2>
+    <p class="muted">Mật khẩu chung: <code>Lms@2026</code></p>
+    <ul class="demo-list">
+      <li><span class="badge badge-admin">Quản trị viên</span> admin@lms.test</li>
+      <li><span class="badge badge-teacher">Giảng viên</span> an.gv@lms.test</li>
+      <li><span class="badge badge-teacher">Giảng viên</span> binh.gv@lms.test</li>
+      <li><span class="badge badge-student">Sinh viên</span> chi.sv@lms.test</li>
+      <li><span class="badge badge-student">Sinh viên</span> dung.sv@lms.test</li>
+    </ul>
+    <p class="muted small">
+      4 vai trò: Quản trị viên · Giảng viên · Sinh viên · Khách (chưa đăng nhập).
+    </p>
+  </aside>
+</section>
+{% endblock %}
