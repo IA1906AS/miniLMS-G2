@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Trang chủ{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Hệ thống quản lý học tập</p>
+
+  {% if current_user %}
+  <h1>Chào {{ current_user.email.split('@')[0] }} 👋</h1>
+  {% else %}
+  <h1>Học tập, gọn gàng và rõ ràng</h1>
+  {% endif %}
+
+  <p class="lede">{{ hint }}</p>
+
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-value">{{ stats.courses }}</span>
+      <span class="stat-label">Môn học</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.teachers }}</span>
+      <span class="stat-label">Giảng viên</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.students }}</span>
+      <span class="stat-label">Sinh viên</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.enrollments }}</span>
+      <span class="stat-label">Lượt ghi danh</span>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Môn học đang mở</h2>
+    <span class="muted">{{ courses | length }} môn</span>
+  </div>
+
+  <div class="grid">
+    {% for course in courses %}
+    <article class="card">
+      <div class="card-head">
+        <span class="chip">{{ course.id | upper }}</span>
+        {% if current_user and current_user.role == 'TEACHER' and course.instructor_id == current_user.id %}
+        <span class="badge badge-teacher">Bạn dạy</span>
+        {% endif %}
+      </div>
+
+      <h3>{{ course.title }}</h3>
+      <p class="muted">GV: {{ course.instructor_email }}</p>
+
+      <dl class="meta">
+        <div>
+          <dt>Sĩ số</dt>
+          <dd>{{ course.students }}</dd>
+        </div>
+        <div>
+          <dt>Điểm TB</dt>
+          <dd>{{ '%.2f' | format(course.avg_score) if course.avg_score is not none else '—' }}</dd>
+        </div>
+        {% if course.id in my_scores %}
+        <div>
+          <dt>Điểm của bạn</dt>
+          <dd class="score">{{ my_scores[course.id] }}</dd>
+        </div>
+        {% endif %}
+      </dl>
+    </article>
+    {% else %}
+    <p class="muted">Chưa có môn học nào.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

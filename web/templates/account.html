@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Tài khoản{% endblock %}
+
+{% block content %}
+<section class="account-head">
+  <div class="profile">
+    <span class="avatar avatar-lg">{{ current_user.email[0] | upper }}</span>
+    <div>
+      <h1>{{ current_user.email }}</h1>
+      <p class="muted">
+        <span class="badge badge-{{ current_user.role | lower }}">{{ role_labels[current_user.role] }}</span>
+        <span class="dot">·</span> ID <code>{{ current_user.id }}</code>
+      </p>
+    </div>
+  </div>
+</section>
+
+{% if section == 'STUDENT' %}
+<section class="section">
+  <div class="section-head">
+    <h2>Điểm của tôi</h2>
+    {% if average is not none %}
+    <span class="muted">Điểm trung bình: <strong class="score">{{ average }}</strong></span>
+    {% endif %}
+  </div>
+
+  {% if grades %}
+  <table class="table">
+    <thead>
+      <tr><th>Mã</th><th>Môn học</th><th>Giảng viên</th><th class="num">Điểm</th></tr>
+    </thead>
+    <tbody>
+      {% for grade in grades %}
+      <tr>
+        <td><span class="chip">{{ grade.id | upper }}</span></td>
+        <td>{{ grade.title }}</td>
+        <td class="muted">{{ grade.instructor_email }}</td>
+        <td class="num score">{{ grade.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Bạn chưa ghi danh môn học nào.</p>
+  {% endif %}
+</section>
+
+{% elif section == 'TEACHER' %}
+<section class="section">
+  <div class="section-head">
+    <h2>Môn tôi dạy</h2>
+    <span class="muted">{{ courses | length }} môn · {{ students }} sinh viên</span>
+  </div>
+
+  {% if courses %}
+  <table class="table">
+    <thead>
+      <tr><th>Mã</th><th>Môn học</th><th class="num">Sĩ số</th><th class="num">Điểm TB</th></tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td><span class="chip">{{ course.id | upper }}</span></td>
+        <td>{{ course.title }}</td>
+        <td class="num">{{ course.students }}</td>
+        <td class="num">{{ '%.2f' | format(course.avg_score) if course.avg_score is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Bạn chưa được phân công môn nào.</p>
+  {% endif %}
+</section>
+
+{% else %}
+<section class="section">
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-value">{{ stats.users }}</span>
+      <span class="stat-label">Tài khoản</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.courses }}</span>
+      <span class="stat-label">Môn học</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.enrollments }}</span>
+      <span class="stat-label">Lượt ghi danh</span>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Toàn bộ môn học</h2>
+    <span class="muted">{{ courses | length }} môn</span>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr><th>Mã</th><th>Môn học</th><th>Giảng viên</th><th class="num">Sĩ số</th><th class="num">Điểm TB</th></tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td><span class="chip">{{ course.id | upper }}</span></td>
+        <td>{{ course.title }}</td>
+        <td class="muted">{{ course.instructor_email }}</td>
+        <td class="num">{{ course.students }}</td>
+        <td class="num">{{ '%.2f' | format(course.avg_score) if course.avg_score is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}
