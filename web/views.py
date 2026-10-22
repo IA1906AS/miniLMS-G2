@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from werkzeug.wrappers import Response
 
 from web.auth import (
@@ -129,7 +129,6 @@ def account() -> str:
             ctx["courses"] = course_overview(sess)
         else:
             # Vai trò không xác định (GUEST hoặc role lạ) — fail-closed
-            from app.errors import Forbidden
-            raise Forbidden("Không có quyền truy cập trang tài khoản")
+            abort(403)
 
     return render_template("account.html", **ctx)

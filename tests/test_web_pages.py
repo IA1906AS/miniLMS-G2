@@ -186,3 +186,52 @@ def test_khong_cho_open_redirect(client):
     )
     assert res.status_code == 302
     assert "evil.example.com" not in res.headers["Location"]
+
+
+def test_login_thieu_thong_tin(client):
+    res = client.post("/login", data={"email": "", "password": ""})
+    assert res.status_code == 401
+    assert "Vui lòng nhập đầy đủ" in res.get_data(as_text=True)
+
+
+def test_login_da_dang_nhap_duoc_redirect(client):
+    assert login(client, "chi.sv@lms.test").status_code == 302
+    res = client.get("/login")
+    assert res.status_code == 302
+    assert "/account" in res.headers["Location"]
+
+
+def test_login_brute_force_lockout(client):
+    from app.store import get_store
+
+    email = "chi.sv@lms.test"
+    try:
+        for _ in range(5):
+            res = login(client, email, "sai-mat-khau")
+            assert res.status_code == 401
+            assert "không đúng" in res.get_data(as_text=True)
+
+        # Lần 6 bị khóa 15 phút
+        res = login(client, email, "sai-mat-khau")
+        assert res.status_code == 401
+        assert "bị khóa" in res.get_data(as_text=True)
+
+        # Nhập đúng pass khi đang bị khóa cũng vẫn bị từ chối
+        res = login(client, email, PASSWORD)
+        assert res.status_code == 401
+        assert "bị khóa" in res.get_data(as_text=True)
+    finally:
+        get_store().failed_logins.clear()
+
+
+def test_account_vai_tro_la_bi_403(webapp):
+    from unittest.mock import patch
+
+    client = webapp.test_client()
+    fake_user = {"id": "u99", "email": "unknown@lms.test", "role": "UNKNOWN"}
+    with patch("web.auth.current_user", return_value=fake_user), patch(
+        "web.views.current_user", return_value=fake_user
+    ):
+        res = client.get("/account")
+        assert res.status_code == 403
+
