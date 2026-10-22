@@ -474,7 +474,8 @@ code {
   margin-top: 6px;
 }
 
-.form input {
+.form input,
+.form select {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -501,6 +502,12 @@ code {
   background: rgba(255, 107, 107, 0.12);
   color: #ff9d9d;
   font-size: 13.5px;
+}
+
+.alert-success {
+  border-color: rgba(55, 211, 153, 0.35);
+  background: rgba(55, 211, 153, 0.12);
+  color: #72f1be;
 }
 
 .demo-list {

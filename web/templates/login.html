@@ -7,6 +7,10 @@
     <h1>Đăng nhập</h1>
     <p class="muted">Dùng tài khoản LMS của bạn để xem trang tài khoản và điểm số.</p>
 
+    {% if request.args.get('reset') %}
+    <p class="alert alert-success" role="status">Đặt lại mật khẩu thành công. Vui lòng đăng nhập với mật khẩu mới.</p>
+    {% endif %}
+
     {% if error %}
     <p class="alert" role="alert">{{ error }}</p>
     {% endif %}
@@ -35,7 +39,10 @@
       <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
     </form>
 
-    <p class="muted small">Trang đăng ký và đặt lại mật khẩu do phần API đảm nhiệm.</p>
+    <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 13.5px;">
+      <a href="{{ url_for('web.reset_password') }}" class="muted">Quên mật khẩu?</a>
+      <a href="{{ url_for('web.register') }}" style="color: var(--accent); font-weight: 600;">Chưa có tài khoản? Đăng ký</a>
+    </div>
   </div>
 
   <aside class="auth-side">

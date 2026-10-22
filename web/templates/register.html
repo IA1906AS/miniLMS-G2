@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký tài khoản{% endblock %}
+
+{% block content %}
+<section class="auth">
+  <div class="auth-card">
+    <h1>Đăng ký tài khoản</h1>
+    <p class="muted">Tạo tài khoản mới để tham gia học tập hoặc giảng dạy trên miniLMS.</p>
+
+    {% if error %}
+    <p class="alert" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('web.register') }}" class="form">
+      <label for="email">Email</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        value="{{ email or '' }}"
+        placeholder="example@lms.test"
+        required
+        autofocus
+      />
+
+      <label for="role">Vai trò</label>
+      <select id="role" name="role" required>
+        <option value="STUDENT" {% if role == 'STUDENT' %}selected{% endif %}>Sinh viên</option>
+        <option value="TEACHER" {% if role == 'TEACHER' %}selected{% endif %}>Giảng viên</option>
+      </select>
+
+      <label for="password">Mật khẩu</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, thường, số"
+        required
+      />
+
+      <label for="confirm_password">Xác nhận mật khẩu</label>
+      <input
+        id="confirm_password"
+        name="confirm_password"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Nhập lại mật khẩu"
+        required
+      />
+
+      <button type="submit" class="btn btn-primary btn-block">Đăng ký ngay</button>
+    </form>
+
+    <div style="margin-top: 14px; font-size: 13.5px; text-align: center;">
+      <span class="muted">Đã có tài khoản?</span>
+      <a href="{{ url_for('web.login') }}" style="color: var(--accent); font-weight: 600; margin-left: 4px;">Đăng nhập</a>
+    </div>
+  </div>
+
+  <aside class="auth-side">
+    <h2>Quy tắc tạo tài khoản</h2>
+    <ul class="demo-list">
+      <li><strong>Email:</strong> Phải có định dạng hợp lệ (vd: <code>user@example.com</code>).</li>
+      <li><strong>Mật khẩu:</strong> Tối thiểu 8 ký tự, có ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.</li>
+      <li><strong>Vai trò:</strong> Bạn có thể đăng ký tài khoản <em>Sinh viên</em> hoặc <em>Giảng viên</em>.</li>
+    </ul>
+    <p class="muted small" style="margin-top: 14px;">
+      * Lưu ý: Tài khoản Quản trị viên (ADMIN) chỉ có thể được tạo bởi quản trị viên hệ thống.
+    </p>
+  </aside>
+</section>
+{% endblock %}
