@@ -7,6 +7,7 @@ from typing import Any
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from werkzeug.wrappers import Response
 
+from app.errors import AccountLocked
 from web.auth import (
     attach_session,
     authenticate,
@@ -25,7 +26,6 @@ from web.database import (
     student_grades,
     teaching_courses,
 )
-from app.errors import AccountLocked
 
 bp = Blueprint("web", __name__)
 
@@ -85,7 +85,10 @@ def login() -> Response | tuple[str, int]:
             try:
                 actor = authenticate(email, password)
             except AccountLocked:
-                error = "Tài khoản tạm thời bị khóa do đăng nhập sai quá nhiều lần. Thử lại sau 15 phút."
+                error = (
+                    "Tài khoản tạm thời bị khóa do đăng nhập sai quá nhiều lần. "
+                    "Thử lại sau 15 phút."
+                )
                 actor = None
             if actor is None:
                 # Thông điệp giống nhau cho email sai và mật khẩu sai.

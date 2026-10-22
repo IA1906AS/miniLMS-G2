@@ -229,9 +229,9 @@ def test_account_vai_tro_la_bi_403(webapp):
 
     client = webapp.test_client()
     fake_user = {"id": "u99", "email": "unknown@lms.test", "role": "UNKNOWN"}
-    with patch("web.auth.current_user", return_value=fake_user), patch(
-        "web.views.current_user", return_value=fake_user
+    with (
+        patch("web.auth.current_user", return_value=fake_user),
+        patch("web.views.current_user", return_value=fake_user),
     ):
         res = client.get("/account")
         assert res.status_code == 403
-
