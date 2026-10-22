@@ -25,6 +25,7 @@ from web.database import (
     student_grades,
     teaching_courses,
 )
+from app.errors import AccountLocked
 
 bp = Blueprint("web", __name__)
 
@@ -81,10 +82,14 @@ def login() -> Response | tuple[str, int]:
         if not email or not password:
             error = "Vui lòng nhập đầy đủ email và mật khẩu."
         else:
-            actor = authenticate(email, password)
+            try:
+                actor = authenticate(email, password)
+            except AccountLocked:
+                error = "Tài khoản tạm thời bị khóa do đăng nhập sai quá nhiều lần. Thử lại sau 15 phút."
+                actor = None
             if actor is None:
                 # Thông điệp giống nhau cho email sai và mật khẩu sai.
-                error = "Email hoặc mật khẩu không đúng."
+                error = error or "Email hoặc mật khẩu không đúng."
             else:
                 response = redirect(_safe_next(request.args.get("next")))
                 return attach_session(response, actor["id"])
@@ -122,8 +127,9 @@ def account() -> str:
         elif actor["role"] == ROLE_ADMIN:
             ctx["stats"] = platform_stats(sess)
             ctx["courses"] = course_overview(sess)
-        else:  # GUEST không vào được đây vì login_required, nhưng fail closed
-            ctx["stats"] = platform_stats(sess)
-            ctx["courses"] = course_overview(sess)
+        else:
+            # Vai trò không xác định (GUEST hoặc role lạ) — fail-closed
+            from app.errors import Forbidden
+            raise Forbidden("Không có quyền truy cập trang tài khoản")
 
     return render_template("account.html", **ctx)

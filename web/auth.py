@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
@@ -10,7 +11,8 @@ from flask import current_app, g, redirect, request, url_for
 from werkzeug.wrappers import Response
 
 from app.auth import decode_token, encode_token, verify_password
-from app.errors import AppError
+from app.errors import AccountLocked, AppError
+from app.store import get_store
 from web.database import User, get_db, normalize_role
 
 
@@ -61,14 +63,28 @@ def login_required(view: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def authenticate(email: str, password: str) -> dict[str, Any] | None:
-    """Kiểm tra email + mật khẩu (bcrypt). Sai thì trả None, không lộ bên nào sai."""
+    """Kiểm tra email + mật khẩu (bcrypt) với brute-force protection.
+
+    Dùng lại Store của API (in-memory) để đồng bộ lockout giữa web UI và API.
+    Sai thì trả None, không lộ bên nào sai.
+    Raises AccountLocked nếu tài khoản bị khóa.
+    """
+    store = get_store()
+    now = time.time()
+    normalized = email.strip().lower()
+
+    # Brute-force lockout (dùng lại cùng Store với API)
+    if store.is_account_locked(normalized, now):
+        raise AccountLocked("Tài khoản tạm thời bị khóa do đăng nhập sai quá nhiều lần")
+
     with get_db().session() as sess:
-        user = (
-            sess.query(User).filter(User.email == email.strip().lower()).one_or_none()
-        )
+        user = sess.query(User).filter(User.email == normalized).one_or_none()
         if user is None or not verify_password(password, user.password_hash):
+            store.record_login_failure(normalized, now)
             return None
-        return {"id": user.id, "email": user.email, "role": normalize_role(user.role)}
+
+    store.record_login_success(normalized)
+    return {"id": user.id, "email": user.email, "role": normalize_role(user.role)}
 
 
 def attach_session(response: Response, user_id: str) -> Response:
