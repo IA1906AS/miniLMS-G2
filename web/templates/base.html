@@ -26,17 +26,24 @@
           class="nav-link{% if request.endpoint == 'web.account' %} is-active{% endif %}"
           >Tài khoản</a
         >
+        <a
+          href="{{ url_for('web.change_password') }}"
+          class="nav-link{% if request.endpoint == 'web.change_password' %} is-active{% endif %}"
+          >Đổi mật khẩu</a
+        >
         <span class="nav-user">
           <span class="avatar">{{ current_user.email[0] | upper }}</span>
           <span class="nav-email">{{ current_user.email }}</span>
           <span class="badge badge-{{ current_user.role | lower }}"
             >{{ role_labels[current_user.role] }}</span
-          >        </span>
+          >
+        </span>
         <form method="post" action="{{ url_for('web.logout') }}">
           <button type="submit" class="btn btn-ghost">Đăng xuất</button>
         </form>
         {% else %}
         <span class="badge badge-guest">Khách</span>
+        <a class="btn btn-ghost" href="{{ url_for('web.register') }}">Đăng ký</a>
         <a class="btn btn-primary" href="{{ url_for('web.login') }}">Đăng nhập</a>
         {% endif %}
       </nav>

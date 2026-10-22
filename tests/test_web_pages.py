@@ -235,3 +235,142 @@ def test_account_vai_tro_la_bi_403(webapp):
     ):
         res = client.get("/account")
         assert res.status_code == 403
+
+
+# ---------- register / reset-password / change-password ----------
+
+
+def test_web_register_page_get(client):
+    res = client.get("/register")
+    assert res.status_code == 200
+    assert "Đăng ký tài khoản" in res.get_data(as_text=True)
+
+
+def test_web_register_success(client):
+    res = client.post(
+        "/register",
+        data={
+            "email": "newbie@lms.test",
+            "password": "Password@123",
+            "confirm_password": "Password@123",
+            "role": "STUDENT",
+        },
+    )
+    assert res.status_code == 302
+    assert "/account" in res.headers["Location"]
+
+    # Verify session cookie attached
+    body = client.get("/account").get_data(as_text=True)
+    assert "newbie@lms.test" in body
+
+
+def test_web_register_validation_error(client):
+    # Weak password
+    res = client.post(
+        "/register",
+        data={
+            "email": "bad@lms.test",
+            "password": "123",
+            "confirm_password": "123",
+            "role": "STUDENT",
+        },
+    )
+    assert res.status_code == 400
+    assert "ít nhất 8 ký tự" in res.get_data(as_text=True)
+
+    # Password mismatch
+    res = client.post(
+        "/register",
+        data={
+            "email": "mismatch@lms.test",
+            "password": "Password@123",
+            "confirm_password": "DifferentPassword@123",
+            "role": "STUDENT",
+        },
+    )
+    assert res.status_code == 400
+    assert "không khớp" in res.get_data(as_text=True)
+
+
+def test_web_register_duplicate_email(client):
+    res = client.post(
+        "/register",
+        data={
+            "email": "chi.sv@lms.test",
+            "password": "Password@123",
+            "confirm_password": "Password@123",
+            "role": "STUDENT",
+        },
+    )
+    assert res.status_code == 400
+    assert "đã được sử dụng" in res.get_data(as_text=True)
+
+
+def test_web_reset_password_page_get(client):
+    res = client.get("/reset-password")
+    assert res.status_code == 200
+    assert "Đặt lại mật khẩu" in res.get_data(as_text=True)
+
+
+def test_web_reset_password_success(client):
+    res = client.post(
+        "/reset-password",
+        data={
+            "email": "chi.sv@lms.test",
+            "new_password": "NewSecret@2026",
+            "confirm_password": "NewSecret@2026",
+        },
+    )
+    assert res.status_code == 302
+    assert "/login?reset=1" in res.headers["Location"]
+
+    # Now login with new password
+    login_res = login(client, "chi.sv@lms.test", "NewSecret@2026")
+    assert login_res.status_code == 302
+
+
+def test_web_reset_password_user_not_found(client):
+    res = client.post(
+        "/reset-password",
+        data={
+            "email": "notfound@lms.test",
+            "new_password": "NewSecret@2026",
+            "confirm_password": "NewSecret@2026",
+        },
+    )
+    assert res.status_code == 400
+    assert "Không tìm thấy" in res.get_data(as_text=True)
+
+
+def test_web_change_password_unauthenticated(client):
+    res = client.get("/change-password")
+    assert res.status_code == 302
+    assert "/login" in res.headers["Location"]
+
+
+def test_web_change_password_success(client):
+    login(client, "dung.sv@lms.test", PASSWORD)
+    res = client.post(
+        "/change-password",
+        data={
+            "old_password": PASSWORD,
+            "new_password": "FreshPassword@2026",
+            "confirm_password": "FreshPassword@2026",
+        },
+    )
+    assert res.status_code == 200
+    assert "thành công" in res.get_data(as_text=True)
+
+
+def test_web_change_password_wrong_old(client):
+    login(client, "dung.sv@lms.test", PASSWORD)
+    res = client.post(
+        "/change-password",
+        data={
+            "old_password": "WrongPassword@123",
+            "new_password": "FreshPassword@2026",
+            "confirm_password": "FreshPassword@2026",
+        },
+    )
+    assert res.status_code == 400
+    assert "không đúng" in res.get_data(as_text=True)
