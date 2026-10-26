@@ -1,0 +1,16 @@
+# Bỏ qua môi trường ảo và thư mục build/cache
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+
+# Bỏ qua cache linter và test runner
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Bỏ qua thư mục test (thường chứa mock password, test tokens)
+tests/
