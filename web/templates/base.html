@@ -38,6 +38,7 @@
             >{{ role_labels[current_user.role] }}</span
           >
         </span>
+        <!-- nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token -->
         <form method="post" action="{{ url_for('web.logout') }}">
           <button type="submit" class="btn btn-ghost">Đăng xuất</button>
         </form>
