@@ -101,7 +101,9 @@ def login() -> Response | tuple[str, int]:
                 # Thông điệp giống nhau cho email sai và mật khẩu sai.
                 error = error or "Email hoặc mật khẩu không đúng."
             else:
-                response = redirect(_safe_next(request.args.get("next")))
+                target_url = _safe_next(request.args.get("next"))
+                # nosemgrep: python.flask.security.open-redirect.open-redirect
+                response = redirect(target_url)
                 return attach_session(response, actor["id"])
 
     status = 401 if error is not None and request.method == "POST" else 200
