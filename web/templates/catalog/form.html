@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Tạo khoá học{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="section-head">
+    <h2>Tạo khoá học mới</h2>
+    <a class="btn btn-ghost" href="{{ url_for('catalog.index') }}">← Danh mục</a>
+  </div>
+
+  <form method="post" action="{{ url_for('catalog.create_course') }}" class="form card">
+    <label for="title">Tên khoá học</label>
+    <input id="title" name="title" type="text" value="{{ course.title if course else '' }}" required />
+
+    <label for="description">Mô tả</label>
+    <textarea id="description" name="description" rows="4">{{ course.description if course and course.description else '' }}</textarea>
+
+    <label for="price">Học phí (0 = miễn phí)</label>
+    <input id="price" name="price" type="number" min="0" step="1000" value="{{ course.price if course else 0 }}" />
+
+    <label for="category_id">Danh mục</label>
+    <select id="category_id" name="category_id">
+      <option value="">— Không chọn —</option>
+      {% for cat in categories %}
+      <option value="{{ cat.id }}">{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="tags">Tag (cách nhau bằng dấu phẩy)</label>
+    <input id="tags" name="tags" type="text" placeholder="web, python, cơ bản" />
+
+    <label for="status">Trạng thái</label>
+    <select id="status" name="status">
+      <option value="DRAFT">Nháp</option>
+      <option value="PUBLISHED">Xuất bản</option>
+    </select>
+
+    <button type="submit" class="btn btn-primary">Tạo khoá học</button>
+  </form>
+</section>
+{% endblock %}

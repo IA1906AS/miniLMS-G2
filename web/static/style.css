@@ -539,3 +539,19 @@ code {
     display: none;
   }
 }
+
+/* ---------- flash ---------- */
+.flash-wrap { width: min(1080px, 100% - 32px); margin: 16px auto 0; display: flex; flex-direction: column; gap: 8px; }
+.flash { margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; border: 1px solid transparent; }
+.flash-success { background: rgba(55, 211, 153, 0.12); border-color: rgba(55, 211, 153, 0.35); color: var(--green); }
+.flash-error { background: rgba(255, 107, 107, 0.12); border-color: rgba(255, 107, 107, 0.35); color: #ff9d9d; }
+
+/* ---------- tabs & lesson list ---------- */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { padding: 6px 12px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.tab.is-active { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.lesson-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+.lesson-list li { display: flex; align-items: center; gap: 8px; }
+.form textarea { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+.form select { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; }
+

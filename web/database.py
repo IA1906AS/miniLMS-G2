@@ -1,7 +1,7 @@
-"""Lớp truy cập dữ liệu cho giao diện web LMS: SQLite + SQLAlchemy 2.x.
+"""Tầng dữ liệu: engine/session + seed + các query dùng cho giao diện.
 
-Tách khỏi ``app/`` (bản API chấm thi vẫn chạy in-memory theo yêu cầu đề bài).
-Dùng chung seed.json để dữ liệu hai bên giống nhau.
+Mô hình bảng nằm ở ``web.models`` và được re-export tại đây để mọi module cũ
+(``from web.database import User, ROLE_ADMIN, ...``) tiếp tục chạy.
 """
 
 from __future__ import annotations
@@ -12,114 +12,102 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import (
-    Float,
-    ForeignKey,
-    String,
-    UniqueConstraint,
-    create_engine,
-    func,
-    select,
-)
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    Session,
-    mapped_column,
-    relationship,
-    sessionmaker,
-)
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.auth import hash_password
+from web.models import (
+    ROLE_ADMIN,
+    ROLE_ALIASES,
+    ROLE_GUEST,
+    ROLE_LABELS,
+    ROLE_STUDENT,
+    ROLE_TEACHER,
+    Assignment,
+    Badge,
+    Base,
+    Category,
+    Certificate,
+    Course,
+    CourseSection,
+    CourseTag,
+    Enrollment,
+    GradeItem,
+    Group,
+    GroupMember,
+    LearningPath,
+    LearningPathItem,
+    Lesson,
+    LessonComment,
+    LessonCompletion,
+    LiveSession,
+    Module,
+    Notification,
+    PointsLedger,
+    Question,
+    Quiz,
+    QuizAttempt,
+    QuizQuestion,
+    Submission,
+    Tag,
+    Term,
+    User,
+    UserBadge,
+    normalize_role,
+    utcnow,
+)
 
-ROLE_ADMIN = "ADMIN"
-ROLE_TEACHER = "TEACHER"
-ROLE_STUDENT = "STUDENT"
-ROLE_GUEST = "GUEST"
+__all__ = [
+    "DEFAULT_SEED",
+    "ROLE_ADMIN",
+    "ROLE_ALIASES",
+    "ROLE_GUEST",
+    "ROLE_LABELS",
+    "ROLE_STUDENT",
+    "ROLE_TEACHER",
+    "Assignment",
+    "Badge",
+    "Base",
+    "Category",
+    "Certificate",
+    "Course",
+    "CourseSection",
+    "CourseTag",
+    "Database",
+    "Enrollment",
+    "GradeItem",
+    "Group",
+    "GroupMember",
+    "LearningPath",
+    "LearningPathItem",
+    "Lesson",
+    "LessonComment",
+    "LessonCompletion",
+    "LiveSession",
+    "Module",
+    "Notification",
+    "PointsLedger",
+    "Question",
+    "Quiz",
+    "QuizAttempt",
+    "QuizQuestion",
+    "Submission",
+    "Tag",
+    "Term",
+    "User",
+    "UserBadge",
+    "course_overview",
+    "get_db",
+    "normalize_role",
+    "platform_stats",
+    "student_grades",
+    "teaching_courses",
+    "utcnow",
+]
 
-ROLE_LABELS = {
-    ROLE_ADMIN: "Quản trị viên",
-    ROLE_TEACHER: "Giảng viên",
-    ROLE_STUDENT: "Sinh viên",
-    ROLE_GUEST: "Khách",
-}
-
-# Bản API chấm thi dùng "INSTRUCTOR" (theo seed.json của đề bài), giao diện web
-# dùng "TEACHER". Quy đổi tại biên để hai bên không lệch nhau.
-ROLE_ALIASES = {"INSTRUCTOR": ROLE_TEACHER, "TEACHER": ROLE_TEACHER}
-
-
-def normalize_role(role: str | None) -> str:
-    """Đưa mọi biến thể vai trò về 4 giá trị: ADMIN | TEACHER | STUDENT | GUEST."""
-    if not role:
-        return ROLE_GUEST
-    key = str(role).strip().upper()
-    key = ROLE_ALIASES.get(key, key)
-    return key if key in ROLE_LABELS else ROLE_GUEST
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20))
-
-    enrollments: Mapped[list[Enrollment]] = relationship(
-        back_populates="student",
-        foreign_keys="Enrollment.student_id",
-        cascade="all, delete-orphan",
-    )
-    teaching: Mapped[list[Course]] = relationship(back_populates="instructor")
-
-    @property
-    def role_label(self) -> str:
-        return ROLE_LABELS[normalize_role(self.role)]
-
-    @property
-    def initials(self) -> str:
-        return self.email.split("@", 1)[0][:2].upper()
-
-
-class Course(Base):
-    __tablename__ = "courses"
-
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)
-    title: Mapped[str] = mapped_column(String(255))
-    instructor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-
-    instructor: Mapped[User] = relationship(
-        back_populates="teaching", foreign_keys=[instructor_id]
-    )
-    enrollments: Mapped[list[Enrollment]] = relationship(
-        back_populates="course", cascade="all, delete-orphan"
-    )
-
-
-class Enrollment(Base):
-    __tablename__ = "enrollments"
-    __table_args__ = (
-        UniqueConstraint("course_id", "student_id", name="uq_enrollment"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"))
-    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    score: Mapped[float] = mapped_column(Float, default=0.0)
-
-    course: Mapped[Course] = relationship(
-        back_populates="enrollments", foreign_keys=[course_id]
-    )
-    student: Mapped[User] = relationship(
-        back_populates="enrollments", foreign_keys=[student_id]
-    )
+DEFAULT_SEED = "seed.json"
 
 
 def _make_engine(url: str) -> Engine:
@@ -134,7 +122,7 @@ def _make_engine(url: str) -> Engine:
 
 
 class Database:
-    """Bọc engine + session factory, kèm seed từ seed.json."""
+    """Bọc engine + session factory, kèm seed dữ liệu demo."""
 
     def __init__(self, url: str) -> None:
         self.url = url
@@ -160,8 +148,8 @@ class Database:
         with self.session() as sess:
             return not sess.scalar(select(func.count()).select_from(User))
 
-    def seed_if_empty(self, seed_path: str | Path) -> bool:
-        """Nạp seed.json khi bảng users còn trống. Trả True nếu có nạp."""
+    # -- seed ---------------------------------------------------------------
+    def seed_if_empty(self, seed_path: str | Path = DEFAULT_SEED) -> bool:
         if not self.is_empty():
             return False
 
@@ -171,34 +159,175 @@ class Database:
         data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
 
         with self.session() as sess:
-            for user in data.get("users", []):
-                sess.add(
-                    User(
-                        id=user["id"],
-                        email=user["email"].strip().lower(),
-                        role=normalize_role(user["role"]),
-                        password_hash=hash_password(user["password"]),
-                    )
-                )
-            sess.flush()
-            for course in data.get("courses", []):
-                sess.add(
-                    Course(
-                        id=course["id"],
-                        title=course["title"],
-                        instructor_id=course["instructorId"],
-                    )
-                )
-            sess.flush()
-            for row in data.get("enrollments", []):
-                sess.add(
-                    Enrollment(
-                        course_id=row["courseId"],
-                        student_id=row["studentId"],
-                        score=float(row["score"]),
-                    )
-                )
+            _seed_users(sess, data)
+            _seed_courses(sess, data)
+            _seed_enrollments(sess, data)
+            _seed_demo_content(sess)
         return True
+
+
+def _seed_users(sess: Session, data: dict[str, Any]) -> None:
+    for user in data.get("users", []):
+        sess.add(
+            User(
+                id=user["id"],
+                email=user["email"].strip().lower(),
+                role=normalize_role(user["role"]),
+                password_hash=hash_password(user["password"]),
+                full_name=user.get("fullName") or user["email"].split("@")[0],
+            )
+        )
+    sess.flush()
+
+
+def _seed_courses(sess: Session, data: dict[str, Any]) -> None:
+    term = Term(name="HK1 2026-2027", is_active=True)
+    sess.add(term)
+    category = Category(name="Công nghệ thông tin", slug="cntt")
+    sess.add(category)
+    sess.flush()
+
+    for course in data.get("courses", []):
+        cid = course["id"]
+        sess.add(
+            Course(
+                id=cid,
+                title=course["title"],
+                instructor_id=course["instructorId"],
+                slug=cid,
+                description=f"Môn {course['title']} — lớp mở trong {term.name}.",
+                category_id=category.id,
+                price=0.0,
+                status="PUBLISHED",
+            )
+        )
+        sess.flush()
+        sess.add(
+            CourseSection(
+                course_id=cid,
+                term_id=term.id,
+                code="01",
+                capacity=40,
+                status="OPEN",
+            )
+        )
+    sess.flush()
+
+
+def _seed_enrollments(sess: Session, data: dict[str, Any]) -> None:
+    sections = {s.course_id: s.id for s in sess.scalars(select(CourseSection)).all()}
+    for row in data.get("enrollments", []):
+        sess.add(
+            Enrollment(
+                course_id=row["courseId"],
+                section_id=sections.get(row["courseId"]),
+                student_id=row["studentId"],
+                score=float(row["score"]),
+                status="APPROVED",
+            )
+        )
+    sess.flush()
+
+
+def _seed_demo_content(sess: Session) -> None:
+    """Nội dung mẫu: module + bài học + quiz + badge để giao diện có dữ liệu."""
+    sections = sess.scalars(select(CourseSection).order_by(CourseSection.id)).all()
+    teacher = sess.scalars(select(User).where(User.role == ROLE_TEACHER)).first()
+    teacher_id = teacher.id if teacher else "u2"
+
+    for index, section in enumerate(sections, start=1):
+        module = Module(
+            section_id=section.id, title=f"Chương {index}: Nhập môn", position=1
+        )
+        sess.add(module)
+        sess.flush()
+
+        lessons = [
+            Lesson(
+                module_id=module.id,
+                title="Giới thiệu môn học",
+                kind="text",
+                content="Nội dung bài giới thiệu (có thể soạn rich-text).",
+                duration_min=10,
+                position=1,
+                is_preview=True,
+            ),
+            Lesson(
+                module_id=module.id,
+                title="Bài giảng video",
+                kind="video",
+                media_url="https://example.com/video.mp4",
+                duration_min=25,
+                position=2,
+            ),
+            Lesson(
+                module_id=module.id,
+                title="Tài liệu PDF",
+                kind="pdf",
+                media_url="https://example.com/slide.pdf",
+                duration_min=15,
+                position=3,
+            ),
+        ]
+        sess.add_all(lessons)
+        sess.flush()
+
+        question = Question(
+            course_id=section.course_id,
+            created_by=teacher_id,
+            kind="MCQ",
+            prompt="HTTP status nào là 403?",
+            options=["200", "403", "404", "500"],
+            answer={"index": 1},
+            points=2.0,
+            tags="web,http",
+        )
+        sess.add(question)
+        sess.flush()
+
+        quiz = Quiz(
+            section_id=section.id,
+            lesson_id=lessons[0].id,
+            title=f"Quiz chương {index}",
+            time_limit_min=15,
+            pass_score=5.0,
+            max_attempts=3,
+        )
+        sess.add(quiz)
+        sess.flush()
+        sess.add(QuizQuestion(quiz_id=quiz.id, question_id=question.id, position=1))
+        sess.add(
+            GradeItem(
+                section_id=section.id, name="Quiz chương 1", weight=1.0, max_score=10.0
+            )
+        )
+
+    sess.add_all(
+        [
+            Badge(
+                code="first_lesson",
+                name="Bước đầu tiên",
+                description="Hoàn thành bài học đầu tiên",
+                icon="🌱",
+                rule={"type": "LESSON_COMPLETED", "count": 1},
+            ),
+            Badge(
+                code="quiz_master",
+                name="Cao thủ quiz",
+                description="Đạt điểm tuyệt đối một quiz",
+                icon="🎯",
+                rule={"type": "QUIZ_PASSED", "count": 1},
+            ),
+            Badge(
+                code="streak_3",
+                name="Chuỗi 3 ngày",
+                description="Học 3 ngày liên tiếp",
+                icon="🔥",
+                rule={"type": "STREAK", "count": 3},
+            ),
+        ]
+    )
+    sess.flush()
 
 
 def get_db() -> Database:
@@ -206,6 +335,11 @@ def get_db() -> Database:
 
     db: Database = current_app.extensions["lms_db"]
     return db
+
+
+# ---------------------------------------------------------------------------
+# Query dùng bởi các trang hiện có
+# ---------------------------------------------------------------------------
 
 
 def course_overview(sess: Session) -> list[dict[str, Any]]:
@@ -218,10 +352,14 @@ def course_overview(sess: Session) -> list[dict[str, Any]]:
             User.id,
             func.count(Enrollment.id),
             func.avg(Enrollment.score),
+            Course.price,
+            Course.status,
         )
         .join(User, Course.instructor_id == User.id)
         .outerjoin(Enrollment, Enrollment.course_id == Course.id)
-        .group_by(Course.id, Course.title, User.email, User.id)
+        .group_by(
+            Course.id, Course.title, User.email, User.id, Course.price, Course.status
+        )
         .order_by(Course.id)
     ).all()
 
@@ -233,6 +371,8 @@ def course_overview(sess: Session) -> list[dict[str, Any]]:
             "instructor_id": row[3],
             "students": row[4],
             "avg_score": round(row[5], 2) if row[5] is not None else None,
+            "price": row[6],
+            "status": row[7],
         }
         for row in rows
     ]

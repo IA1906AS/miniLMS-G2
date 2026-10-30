@@ -19,8 +19,19 @@
           class="nav-link{% if request.endpoint == 'web.home' %} is-active{% endif %}"
           >Trang chủ</a
         >
+        <a
+          href="{{ url_for('catalog.index') }}"
+          class="nav-link{% if request.endpoint and request.endpoint.startswith('catalog.') %} is-active{% endif %}"
+          >Khoá học</a
+        >
 
-        {% if current_user %}
+        {% if current_user and current_user.role in ['ADMIN', 'TEACHER'] %}
+        <a
+          href="{{ url_for('catalog.new_course') }}"
+          class="nav-link{% if request.endpoint == 'catalog.new_course' %} is-active{% endif %}"
+          >Tạo khoá học</a
+        >
+        {% endif %} {% if current_user %}
         <a
           href="{{ url_for('web.account') }}"
           class="nav-link{% if request.endpoint == 'web.account' %} is-active{% endif %}"
@@ -49,6 +60,14 @@
         {% endif %}
       </nav>
     </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <p class="flash flash-{{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
 
     <main class="page">{% block content %}{% endblock %}</main>
 
