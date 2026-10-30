@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ data.course.title }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="section-head">
+    <h2>{{ data.course.title }}</h2>
+    <a class="btn btn-ghost" href="{{ url_for('catalog.index') }}">← Danh mục</a>
+  </div>
+
+  <p class="muted">
+    GV: {{ data.instructor.email if data.instructor else '—' }} {% if data.tags %} · {%
+    for tag in data.tags %}<span class="chip">{{ tag }}</span> {% endfor %} {% endif %}
+  </p>
+
+  {% if data.course.description %}
+  <p>{{ data.course.description }}</p>
+  {% endif %}
+
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-value">{{ data.student_count }}</span>
+      <span class="stat-label">Học viên</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ data.avg_score if data.avg_score is not none else '—' }}</span>
+      <span class="stat-label">Điểm TB</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ 'Miễn phí' if data.course.price == 0 else '%.0f' | format(data.course.price) }}</span>
+      <span class="stat-label">Học phí</span>
+    </div>
+  </div>
+
+  <div class="section">
+    {% if enrolled %}
+    <span class="badge badge-student">Bạn đã ghi danh môn này</span>
+    {% elif current_user and current_user.role == 'STUDENT' %}
+    <form method="post" action="{{ url_for('catalog.enroll', course_id=data.course.id) }}">
+      <button class="btn btn-primary" type="submit">Ghi danh</button>
+    </form>
+    {% elif not current_user %}
+    <p class="muted">
+      <a href="{{ url_for('web.login', next=request.path) }}">Đăng nhập</a> để ghi danh môn học.
+    </p>
+    {% endif %} {% if current_user and current_user.role in ['ADMIN', 'TEACHER'] %}
+    <a class="btn btn-ghost" href="{{ url_for('catalog.edit_course', course_id=data.course.id) }}">Quản lý khoá học</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Nội dung khoá học</h2></div>
+
+  {% for block in outlines %}
+  <h3>Lớp {{ block.section.code }}</h3>
+  {% for mod in block.outline %}
+  <article class="card">
+    <h4>{{ mod.module.title }}</h4>
+    <ul class="lesson-list">
+      {% for lesson in mod.lessons %}
+      <li>
+        <span class="chip">{{ lesson.kind }}</span>
+        <span>{{ lesson.title }}</span>
+        <span class="muted">· {{ lesson.duration_min }}′</span>
+        {% if lesson.is_preview %}<span class="badge badge-student">Xem trước</span>{% endif %}
+      </li>
+      {% else %}
+      <li class="muted">Chưa có bài học.</li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endfor %} {% else %}
+  <p class="muted">Môn này chưa mở lớp.</p>
+  {% endfor %}
+</section>
+{% endblock %}

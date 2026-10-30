@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Quản lý {{ data.course.title }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="section-head">
+    <h2>Quản lý: {{ data.course.title }}</h2>
+    <a class="btn btn-ghost" href="{{ url_for('catalog.detail', course_id=data.course.id) }}">Xem trang công khai</a>
+  </div>
+
+  <form method="post" class="form card">
+    <label for="title">Tên khoá học</label>
+    <input id="title" name="title" type="text" value="{{ data.course.title }}" required />
+
+    <label for="description">Mô tả</label>
+    <textarea id="description" name="description" rows="4">{{ data.course.description or '' }}</textarea>
+
+    <label for="price">Học phí</label>
+    <input id="price" name="price" type="number" min="0" step="1000" value="{{ data.course.price }}" />
+
+    <label for="category_id">Danh mục</label>
+    <select id="category_id" name="category_id">
+      <option value="">— Không chọn —</option>
+      {% for cat in categories %}
+      <option value="{{ cat.id }}" {% if data.course.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="tags">Tag</label>
+    <input id="tags" name="tags" type="text" value="{{ data.tags | join(', ') }}" />
+
+    <label for="status">Trạng thái</label>
+    <select id="status" name="status">
+      <option value="DRAFT" {% if data.course.status == 'DRAFT' %}selected{% endif %}>Nháp</option>
+      <option value="PUBLISHED" {% if data.course.status == 'PUBLISHED' %}selected{% endif %}>Xuất bản</option>
+    </select>
+
+    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+  </form>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Nội dung lớp học</h2></div>
+
+  {% if data.sections %}
+  <div class="tabs">
+    {% for s in data.sections %}
+    <a class="tab{% if s.id == section_id %} is-active{% endif %}" href="{{ url_for('catalog.edit_course', course_id=data.course.id, section=s.id) }}">Lớp {{ s.code }}</a>
+    {% endfor %}
+  </div>
+
+  {% for block in outline %}
+  <article class="card">
+    <h3>{{ block.module.title }}</h3>
+    <ul class="lesson-list">
+      {% for lesson in block.lessons %}
+      <li>
+        <span class="chip">{{ lesson.kind }}</span>
+        {{ lesson.title }}
+        {% if lesson.is_preview %}<span class="badge badge-student">Xem trước</span>{% endif %}
+      </li>
+      {% else %}
+      <li class="muted">Chưa có bài học.</li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% else %}
+  <p class="muted">Lớp này chưa có chương nào.</p>
+  {% endfor %}
+  {% else %}
+  <p class="muted">Chưa có lớp nào được mở cho môn này.</p>
+  {% endif %}
+</section>
+
+{% if report %}
+<section class="section">
+  <div class="section-head">
+    <h2>Báo cáo lớp {{ report.section.code }}</h2>
+    <span class="muted">{{ report.total }} học viên · pass {{ report.pass_rate }}%</span>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr><th>Email</th><th class="num">Điểm</th><th class="num">Tiến độ</th><th>Kết quả</th></tr>
+    </thead>
+    <tbody>
+      {% for student in report.students %}
+      <tr>
+        <td>{{ student.email }}</td>
+        <td class="num">{{ '%.2f' | format(student.final_score) }}</td>
+        <td class="num">{{ student.completed }}/{{ student.total_lessons }} ({{ student.percent }}%)</td>
+        <td>{% if student.passed %}<span class="badge badge-student">PASS</span>{% else %}<span class="badge badge-admin">FAIL</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}
