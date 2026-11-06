@@ -361,8 +361,53 @@ def main() -> int:
               "chỉnh điểm không kèm feedback giữ nguyên “Tốt”. Test test_diem_ngoai_mien_bi_tu_choi và "
               "test_sua_diem_dung_version_va_giu_nhan_xet đạt. Đã khắc phục.")
 
-    # ---------------- 5. Danh mục kiểm thử ----------------
-    heading(doc, "5. Danh mục kiểm thử", 1)
+    # ---------------- 5. Ảnh PoC Burp ----------------
+    heading(doc, "5. Ảnh PoC thực hiện bằng Burp Suite", 1)
+    body(
+        doc,
+        "Các ảnh dưới đây được chụp trực tiếp từ Burp Suite (tab Repeater) khi tái hiện "
+        "trên nhánh sua-diem-vuln, gửi tới http://127.0.0.1:8888. Ảnh giữ nguyên thanh công cụ, "
+        "request bên trái và response bên phải để đối chiếu.",
+        italic=True,
+        size=10,
+    )
+    shots = [
+        ("docs/poc/v01_lan1.png", "Ảnh 1 — V01 lần 1: score=9, server trả 302 (lưu thành công)."),
+        ("docs/poc/v01_lan2.png", "Ảnh 2 — V01 lần 2: score=2, vẫn 302; điểm 9 của lần trước bị ghi đè."),
+        ("docs/poc/v02_500.png", "Ảnh 3 — V02: chỉnh điểm quiz trả 500, AttributeError: 'QuizAttempt' object has no attribute 'quiz'."),
+        ("docs/poc/v03_99.png", "Ảnh 4 — V03: score=99 không kèm feedback, server vẫn trả 302 và ghi vào DB."),
+    ]
+    for rel, caption in shots:
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        pic_p = doc.add_paragraph()
+        pic_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pic_p.paragraph_format.space_before = Pt(8)
+        pic_p.add_run().add_picture(str(path), width=Cm(16.5))
+        cap = doc.add_paragraph()
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cap.paragraph_format.space_after = Pt(10)
+        run = cap.add_run(caption)
+        set_run_font(run, size=9, italic=True, color=GRAY)
+
+    label(doc, "Đối chiếu dữ liệu sau mỗi PoC")
+    code_block(
+        doc,
+        "-- Sau V01 lần 2 (score=2):\n"
+        "select id, score, feedback from submissions where id=1;\n"
+        "  id | score | feedback\n"
+        " ----+-------+----------\n"
+        "   1 |     2 | Tốt\n\n"
+        "-- Sau V03 (score=99, không gửi feedback):\n"
+        "select id, score, feedback, length(feedback) from submissions where id=1;\n"
+        "  id | score | feedback | length\n"
+        " ----+-------+----------+--------\n"
+        "   1 |    99 |          |      0",
+    )
+
+    # ---------------- 6. Danh mục kiểm thử ----------------
+    heading(doc, "6. Danh mục kiểm thử", 1)
     body(doc, "Ký hiệu: ⊠ đã kiểm thử, không phát hiện lỗi; LỖI phát hiện lỗi (kèm mã); N/A không áp dụng.",
          italic=True, size=10)
     add_table(
@@ -388,7 +433,7 @@ def main() -> int:
     body(doc, "Tổng: 133 test đạt (126 test cũ + 7 test mới cho sửa điểm).", italic=True, size=10)
 
     # ---------------- 6. Đánh giá ----------------
-    heading(doc, "6. Đánh giá và bài học", 1)
+    heading(doc, "7. Đánh giá và bài học", 1)
     body(doc, "Optimistic Locking xử lý đúng lớp lỗi mất cập nhật mà các bài kiểm thử tuần tự không phát hiện được; "
               "version phải đi kèm biểu mẫu và được kiểm tra ở tầng service, không chỉ ở giao diện. "
               "Việc tách grade_service giúp mọi entry point (giảng viên, quản trị, quiz, bài nộp) dùng chung một "
