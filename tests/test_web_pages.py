@@ -413,21 +413,19 @@ def test_assignment_nop_va_cham_diem(client, webapp):
             )
         ).first()
         sid = submission.id
-        version = submission.version
 
-    # GV chấm điểm (kèm version hiện tại — optimistic locking)
+    # GV chấm điểm
     grader = webapp.test_client()
     login(grader, 'an.gv@lms.test')
     res = grader.post(
         f'/assignments/{aid}/submissions/{sid}/grade',
-        data={'score': '9', 'feedback': 'Tốt', 'version': str(version)},
+        data={'score': '9', 'feedback': 'Tốt'},
     )
     assert res.status_code == 302
     with webapp.extensions['lms_db'].session() as sess:
         submission = sess.get(Submission, sid)
         assert submission.score == 9.0
         assert submission.feedback == 'Tốt'
-        assert submission.version == version + 1
 
 
 # ---------- ĐĂNG KÝ ----------

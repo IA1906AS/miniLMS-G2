@@ -70,19 +70,6 @@ def main() -> int:
                         "ON notifications (course_id)"
                     )
                 )
-                # Optimistic locking cho sửa điểm
-                conn.execute(
-                    text(
-                        "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "
-                        "version INTEGER NOT NULL DEFAULT 1"
-                    )
-                )
-                conn.execute(
-                    text(
-                        "ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS "
-                        "version INTEGER NOT NULL DEFAULT 1"
-                    )
-                )
             elif dialect == "sqlite":
                 cols = [
                     r[1]
@@ -96,18 +83,6 @@ def main() -> int:
                         "WHERE enroll_code IS NULL"
                     )
                 )
-                for table in ("submissions", "quiz_attempts"):
-                    tcols = [
-                        r[1]
-                        for r in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
-                    ]
-                    if "version" not in tcols:
-                        conn.execute(
-                            text(
-                                f"ALTER TABLE {table} ADD COLUMN "
-                                "version INTEGER NOT NULL DEFAULT 1"
-                            )
-                        )
             print(f"migrated ({dialect})")
     return 0
 

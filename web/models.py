@@ -390,8 +390,6 @@ class QuizAttempt(Base):
     score: Mapped[float] = mapped_column(Float, default=0.0)
     passed: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default="IN_PROGRESS")
-    #: Optimistic locking cho nghiệp vụ sửa điểm.
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
 class QuizAnswer(Base):
@@ -431,8 +429,6 @@ class Submission(Base):
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text(), nullable=True)
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    #: Optimistic locking cho nghiệp vụ sửa điểm.
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
 # ---------------------------------------------------------------------------

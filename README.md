@@ -57,20 +57,10 @@ Mật khẩu chung: `Lms@2026`
 - Quản trị: khoá user, đổi vai trò, quản lý khoá học, **nhật ký hoạt động**.
 - REST API + OpenAPI: `/api/*`, `/api/docs`.
 
-## Defensive pattern #3 — Optimistic Locking (sửa điểm)
-
-Sửa điểm dùng cột `version` trên `submissions` / `quiz_attempts`. Client gửi
-kèm version đã đọc; lệch version trả **409 Conflict** và không ghi đè.
-
-- Service: `web/grade_service.py`
-- Bản trước khi sửa: `docs/patterns/sua_diem_truoc_khi_sua.py`
-- Bằng chứng before/after: `docs/patterns/evidence.txt`
-- Báo cáo kiểm thử: `docs/Bao_cao_kiem_thu_sua_diem.docx` / `.pdf`
-
 ## Kiểm tra chất lượng
 
 ```bash
-.venv\Scripts\python.exe -m pytest -q          # 133 test
+.venv\Scripts\python.exe -m pytest -q          # 126 test
 .venv\Scripts\python.exe tools\verify_db.py    # đếm bản ghi trong PostgreSQL
 .venv\Scripts\python.exe tools\e2e_check.py    # 28 bước kiểm thử end-to-end
 ```

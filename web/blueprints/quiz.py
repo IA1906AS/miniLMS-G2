@@ -25,12 +25,6 @@ from werkzeug.wrappers import Response
 from web.auth import current_user, login_required, role_required
 from web.audit import record as audit_record
 from web.database import get_db
-from web.grade_service import (
-    GradeConflict,
-    GradeNotFound,
-    GradeValidationError,
-    update_submission_grade,
-)
 from web.storage import CODE_EXT, MAX_DOC_BYTES, delete_file, save_upload
 from web.models import (
     ROLE_ADMIN,
@@ -550,30 +544,31 @@ def assignment_grade(assignment_id: int, submission_id: int) -> Response:
         if not can_manage(sess, actor, assignment.course_id):
             abort(403)
 
+        raw = (request.form.get("score") or "").strip()
+        feedback = (request.form.get("feedback") or "").strip()
         try:
-            update_submission_grade(
-                sess,
-                actor,
-                submission_id,
-                request.form.get("score"),
-                request.form.get("feedback"),
-                request.form.get("version"),
-            )
-        except GradeValidationError as exc:
-            flash(str(exc), "error")
+            score = float(raw)
+        except ValueError:
+            flash("Điểm phải là một số.", "error")
             return redirect(
                 url_for("quiz.assignment_detail", assignment_id=assignment_id)
             )
-        except GradeNotFound:
-            abort(404)
-        except GradeConflict as exc:
-            context = _assignment_context(sess, actor, assignment_id)
-            context["conflict"] = str(exc)
-            return (
-                render_template("quiz/assignment_detail.html", **context),
-                409,
+        if score < 0 or score > assignment.max_score:
+            flash(f"Điểm phải nằm trong 0–{assignment.max_score}.", "error")
+            return redirect(
+                url_for("quiz.assignment_detail", assignment_id=assignment_id)
             )
 
+        submission.score = score
+        submission.feedback = feedback or None
+        submission.graded_at = utcnow()
+        sess.flush()
+        audit_record(
+            "GRADE_UPDATE",
+            f"submission:{submission_id}",
+            actor_id=actor["id"],
+            new_score=score,
+        )
         flash("Đã chấm điểm và gửi nhận xét.", "success")
 
     return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))

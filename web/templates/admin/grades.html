@@ -4,10 +4,6 @@
 {% block content %}
 <h1>Bảng điểm toàn hệ thống</h1>
 
-{% if conflict %}
-  <div class="flash error">⚠ {{ conflict }}</div>
-{% endif %}
-
 <h2>Quiz Attempts</h2>
 {% if attempts %}
   <table class="table">
@@ -20,10 +16,8 @@
           <td>{{ course.title }}</td>
           <td>
             <form method="post" action="{{ url_for('admin.grade_quiz_adjust', attempt_id=attempt.id) }}" class="grade-form">
-              <input type="hidden" name="version" value="{{ attempt.version }}">
               <input type="number" name="score" step="0.5" min="0" max="10" value="{{ attempt.score }}" required style="width: 60px;">
               <button type="submit" class="btn small">Lưu</button>
-              <span class="muted small">v{{ attempt.version }}</span>
             </form>
           </td>
           <td><span class="pill {{ 'ok' if attempt.passed else 'warn' }}">{{ 'Đạt' if attempt.passed else 'Chưa đạt' }}</span></td>
@@ -48,11 +42,9 @@
           <td>{{ course.title }}</td>
           <td>
             <form method="post" action="{{ url_for('admin.grade_assignment_adjust', submission_id=submission.id) }}" class="grade-form">
-              <input type="hidden" name="version" value="{{ submission.version }}">
               <input type="number" name="score" step="0.5" min="0" max="{{ assignment.max_score }}" value="{{ submission.score if submission.score is not none else '' }}" required style="width: 60px;">
               <input type="text" name="feedback" placeholder="Nhận xét" value="{{ submission.feedback or '' }}" style="width: 120px;">
               <button type="submit" class="btn small">Lưu</button>
-              <span class="muted small">v{{ submission.version }}</span>
             </form>
           </td>
           <td class="muted small">{{ submission.submitted_at.strftime('%d/%m/%Y %H:%M') if submission.submitted_at else '—' }}</td>

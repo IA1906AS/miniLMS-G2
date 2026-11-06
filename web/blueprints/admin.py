@@ -23,13 +23,6 @@ from werkzeug.wrappers import Response
 from web.audit import record as audit_record
 from web.auth import admin_required, current_user
 from web.database import get_db
-from web.grade_service import (
-    GradeConflict,
-    GradeNotFound,
-    GradeValidationError,
-    update_quiz_grade,
-    update_submission_grade,
-)
 from web.models import (
     ROLE_ADMIN,
     ROLE_INSTRUCTOR,
@@ -635,59 +628,53 @@ def grades() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        context = _grades_context(sess)
+        attempts = sess.execute(
+            select(QuizAttempt, Quiz, Course, User)
+            .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
+            .join(Course, Quiz.course_id == Course.id)
+            .join(User, QuizAttempt.student_id == User.id)
+            .where(QuizAttempt.status == "SUBMITTED")
+            .order_by(QuizAttempt.submitted_at.desc())
+        ).all()
 
-    return render_template("admin/grades.html", **context)
+        submissions = sess.execute(
+            select(Submission, Assignment, Course, User)
+            .join(Assignment, Submission.assignment_id == Assignment.id)
+            .join(Course, Assignment.course_id == Course.id)
+            .join(User, Submission.student_id == User.id)
+            .order_by(Submission.submitted_at.desc())
+        ).all()
 
-
-def _grades_context(sess: Session) -> dict[str, Any]:
-    # All quiz attempts with scores
-    attempts = sess.execute(
-        select(QuizAttempt, Quiz, Course, User)
-        .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
-        .join(Course, Quiz.course_id == Course.id)
-        .join(User, QuizAttempt.student_id == User.id)
-        .where(QuizAttempt.status == "SUBMITTED")
-        .order_by(QuizAttempt.submitted_at.desc())
-    ).all()
-
-    # All assignment submissions
-    submissions = sess.execute(
-        select(Submission, Assignment, Course, User)
-        .join(Assignment, Submission.assignment_id == Assignment.id)
-        .join(Course, Assignment.course_id == Course.id)
-        .join(User, Submission.student_id == User.id)
-        .order_by(Submission.submitted_at.desc())
-    ).all()
-
-    return {"attempts": attempts, "submissions": submissions}
+    return render_template("admin/grades.html", attempts=attempts, submissions=submissions)
 
 
 @bp.post("/grades/quiz/<int:attempt_id>/adjust")
 @admin_required
 def grade_quiz_adjust(attempt_id: int) -> Response:
-    """Chỉnh sửa điểm quiz (có kiểm tra version)."""
+    """Chỉnh sửa điểm quiz."""
     actor = current_user()
     assert actor is not None
 
+    new_score = request.form.get("score")
+    if new_score is None:
+        flash("Điểm là bắt buộc.", "error")
+        return redirect(url_for("admin.grades"))
+
     with get_db().session() as sess:
-        try:
-            update_quiz_grade(
-                sess,
-                actor,
-                attempt_id,
-                request.form.get("score"),
-                request.form.get("version"),
-            )
-        except GradeValidationError as exc:
-            flash(str(exc), "error")
-            return redirect(url_for("admin.grades"))
-        except GradeNotFound:
+        attempt = sess.get(QuizAttempt, attempt_id)
+        if not attempt:
             abort(404)
-        except GradeConflict as exc:
-            context = _grades_context(sess)
-            context["conflict"] = str(exc)
-            return render_template("admin/grades.html", **context), 409
+        old_score = attempt.score
+        attempt.score = float(new_score)
+        attempt.passed = attempt.score >= attempt.quiz.pass_score
+        sess.flush()
+        audit_record(
+            "GRADE_UPDATE",
+            f"quiz_attempt:{attempt_id}",
+            actor_id=actor["id"],
+            old_score=old_score,
+            new_score=attempt.score,
+        )
         flash("Đã cập nhật điểm.", "success")
 
     return redirect(url_for("admin.grades"))
@@ -696,29 +683,31 @@ def grade_quiz_adjust(attempt_id: int) -> Response:
 @bp.post("/grades/assignment/<int:submission_id>/adjust")
 @admin_required
 def grade_assignment_adjust(submission_id: int) -> Response:
-    """Chỉnh sửa điểm assignment (có kiểm tra version)."""
+    """Chỉnh sửa điểm assignment."""
     actor = current_user()
     assert actor is not None
 
+    new_score = request.form.get("score")
+    feedback = request.form.get("feedback", "")
+    if new_score is None:
+        flash("Điểm là bắt buộc.", "error")
+        return redirect(url_for("admin.grades"))
+
     with get_db().session() as sess:
-        try:
-            update_submission_grade(
-                sess,
-                actor,
-                submission_id,
-                request.form.get("score"),
-                request.form.get("feedback"),
-                request.form.get("version"),
-            )
-        except GradeValidationError as exc:
-            flash(str(exc), "error")
-            return redirect(url_for("admin.grades"))
-        except GradeNotFound:
+        submission = sess.get(Submission, submission_id)
+        if not submission:
             abort(404)
-        except GradeConflict as exc:
-            context = _grades_context(sess)
-            context["conflict"] = str(exc)
-            return render_template("admin/grades.html", **context), 409
+        old_score = submission.score
+        submission.score = float(new_score)
+        submission.feedback = feedback
+        sess.flush()
+        audit_record(
+            "GRADE_UPDATE",
+            f"submission:{submission_id}",
+            actor_id=actor["id"],
+            old_score=old_score,
+            new_score=submission.score,
+        )
         flash("Đã cập nhật điểm.", "success")
 
     return redirect(url_for("admin.grades"))
