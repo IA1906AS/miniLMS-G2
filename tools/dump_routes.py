@@ -21,9 +21,7 @@ def main() -> int:
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: (r.rule, r.endpoint)):
         if rule.endpoint == "static":
             continue
-        methods = sorted(
-            m for m in rule.methods if m not in {"HEAD", "OPTIONS"}
-        )
+        methods = sorted(m for m in rule.methods if m not in {"HEAD", "OPTIONS"})
         rows.append(
             {
                 "rule": rule.rule,

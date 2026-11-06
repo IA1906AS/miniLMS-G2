@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from typing import Any
 
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -16,10 +17,31 @@ from werkzeug.utils import secure_filename
 #: Đuôi tệp cho phép theo từng loại.
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 DOC_EXT = {
-    ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-    ".txt", ".md", ".csv", ".zip", ".rar", ".7z",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".md",
+    ".csv",
+    ".zip",
+    ".rar",
+    ".7z",
 }
-CODE_EXT = DOC_EXT | {".py", ".js", ".ts", ".java", ".c", ".cpp", ".sql", ".html", ".css"}
+CODE_EXT = DOC_EXT | {
+    ".py",
+    ".js",
+    ".ts",
+    ".java",
+    ".c",
+    ".cpp",
+    ".sql",
+    ".html",
+    ".css",
+}
 
 #: Giới hạn kích thước (byte).
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
@@ -35,7 +57,7 @@ def upload_root() -> Path:
     return path
 
 
-def _check(file_storage, allowed: set[str], max_bytes: int) -> str:
+def _check(file_storage: Any, allowed: set[str], max_bytes: int) -> str:
     raw_name = file_storage.filename or ""
     suffix = Path(raw_name).suffix.lower()
     if suffix not in allowed:
@@ -51,7 +73,7 @@ def _check(file_storage, allowed: set[str], max_bytes: int) -> str:
 
 
 def save_upload(
-    file_storage,
+    file_storage: Any,
     subdir: str,
     *,
     allowed: set[str] = DOC_EXT,

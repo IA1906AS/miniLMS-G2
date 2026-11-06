@@ -71,9 +71,7 @@ def test_a3_tampered_token_signature(client):
     payload_dict["sub"] = "u1"
 
     tampered_payload_b64 = (
-        base64.urlsafe_b64encode(json.dumps(payload_dict).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
+        base64.urlsafe_b64encode(json.dumps(payload_dict).encode("utf-8")).decode("utf-8").rstrip("=")
     )
     tampered_token = f"{header_b64}.{tampered_payload_b64}.{sig_b64}"
 
@@ -95,16 +93,8 @@ def test_a4_alg_none_token(client):
         "exp": int(time.time() + 900),
     }
 
-    header_b64 = (
-        base64.urlsafe_b64encode(json.dumps(header).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
-    )
-    payload_b64 = (
-        base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
-    )
+    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode("utf-8")).decode("utf-8").rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8").rstrip("=")
     none_token = f"{header_b64}.{payload_b64}."
 
     res = client.get(

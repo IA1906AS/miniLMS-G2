@@ -31,34 +31,31 @@ from web.grade_service import (
     update_submission_grade,
 )
 from web.models import (
-    ROLE_ADMIN,
-    ROLE_INSTRUCTOR,
-    ROLE_STUDENT,
-    ROLE_LABELS,
-    COURSE_PUBLISHED,
     COURSE_DRAFT,
     COURSE_HIDDEN,
-    ENROLL_ACTIVE,
+    COURSE_PUBLISHED,
     ENROLL_COMPLETED,
+    ROLE_ADMIN,
+    ROLE_INSTRUCTOR,
+    ROLE_LABELS,
+    ROLE_STUDENT,
+    Assignment,
     AuditEvent,
-    User,
+    Badge,
+    Category,
+    Certificate,
     Chapter,
-    Lesson,
     Course,
     Enrollment,
+    ForumTopic,
+    Lesson,
+    LiveSession,
+    Notification,
     Quiz,
     QuizAttempt,
-    Assignment,
-    Submission,
-    Certificate,
-    Badge,
     Setting,
-    Category,
-    ForumTopic,
-    ForumPost,
-    Notification,
-    LiveSession,
-    UserBadge,
+    Submission,
+    User,
     utcnow,
 )
 
@@ -77,31 +74,21 @@ def dashboard() -> str:
             "users": sess.scalar(select(func.count()).select_from(User)) or 0,
             "courses": sess.scalar(select(func.count()).select_from(Course)) or 0,
             "enrollments": sess.scalar(select(func.count()).select_from(Enrollment)) or 0,
-            "published": sess.scalar(
-                select(func.count())
-                .select_from(Course)
-                .where(Course.status == COURSE_PUBLISHED)
-            )
+            "published": sess.scalar(select(func.count()).select_from(Course).where(Course.status == COURSE_PUBLISHED))
             or 0,
         }
         role_counts = [
             {
                 "role": role,
                 "label": ROLE_LABELS.get(role, role),
-                "count": sess.scalar(
-                    select(func.count()).select_from(User).where(User.role == role)
-                )
-                or 0,
+                "count": sess.scalar(select(func.count()).select_from(User).where(User.role == role)) or 0,
             }
             for role in (ROLE_ADMIN, ROLE_INSTRUCTOR, ROLE_STUDENT)
         ]
-        recent = sess.execute(
-            select(Course, User)
-            .join(User, Course.instructor_id == User.id)
-            .order_by(Course.created_at.desc())
-            .limit(8)
+        recent_rows = sess.execute(
+            select(Course, User).join(User, Course.instructor_id == User.id).order_by(Course.created_at.desc()).limit(8)
         ).all()
-        recent = [{"course": c, "instructor": u} for c, u in recent]
+        recent = [{"course": c, "instructor": u} for c, u in recent_rows]
 
     return render_template("admin/dashboard.html", totals=totals, role_counts=role_counts, recent=recent)
 
@@ -119,9 +106,7 @@ def users() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        users_list = sess.scalars(
-            select(User).order_by(User.created_at.desc())
-        ).all()
+        users_list = sess.scalars(select(User).order_by(User.created_at.desc())).all()
 
     return render_template("admin/users.html", users=users_list)
 
@@ -214,12 +199,10 @@ def courses() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        courses_list = sess.execute(
-            select(Course, User)
-            .join(User, Course.instructor_id == User.id)
-            .order_by(Course.created_at.desc())
+        course_rows = sess.execute(
+            select(Course, User).join(User, Course.instructor_id == User.id).order_by(Course.created_at.desc())
         ).all()
-        courses_list = [{"course": c, "instructor": u} for c, u in courses_list]
+        courses_list = [{"course": c, "instructor": u} for c, u in course_rows]
 
     return render_template("admin/courses.html", courses=courses_list)
 
@@ -276,7 +259,7 @@ def reports() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        from web.models import QuizAttempt, Submission, Certificate, LessonProgress
+        from web.models import Certificate, LessonProgress, QuizAttempt, Submission
 
         stats = {
             "total_quiz_attempts": sess.scalar(select(func.count()).select_from(QuizAttempt)) or 0,
@@ -303,7 +286,12 @@ def reports() -> str:
             for role in (ROLE_ADMIN, ROLE_INSTRUCTOR, ROLE_STUDENT)
         ]
 
-    return render_template("admin/reports.html", stats=stats, top_courses=top_courses, users_by_role=users_by_role)
+    return render_template(
+        "admin/reports.html",
+        stats=stats,
+        top_courses=top_courses,
+        users_by_role=users_by_role,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +308,7 @@ def settings() -> str:
 
     with get_db().session() as sess:
         from web.models import Setting
+
         settings_list = sess.scalars(select(Setting).order_by(Setting.key)).all()
 
     return render_template("admin/settings.html", settings=settings_list)
@@ -334,6 +323,7 @@ def settings_update() -> Response:
 
     with get_db().session() as sess:
         from web.models import Setting
+
         for key in request.form:
             if key.startswith("setting_"):
                 setting_key = key[8:]  # remove "setting_"
@@ -373,11 +363,9 @@ def user_detail(user_id: str) -> str:
         ).all()
 
         # Courses taught (if instructor)
-        taught = []
+        taught: list[Course] = []
         if user.role == ROLE_INSTRUCTOR:
-            taught = sess.scalars(
-                select(Course).where(Course.instructor_id == user_id)
-            ).all()
+            taught = list(sess.scalars(select(Course).where(Course.instructor_id == user_id)).all())
 
         # Certificates earned
         certificates = sess.execute(
@@ -396,9 +384,14 @@ def user_detail(user_id: str) -> str:
             .limit(20)
         ).all()
 
-    return render_template("admin/user_detail.html", 
-                           user=user, enrollments=enrollments, 
-                           taught=taught, certificates=certificates, attempts=attempts)
+    return render_template(
+        "admin/user_detail.html",
+        user=user,
+        enrollments=enrollments,
+        taught=taught,
+        certificates=certificates,
+        attempts=attempts,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -419,10 +412,7 @@ def course_detail(course_id: str) -> str:
             abort(404)
 
         instructor = sess.get(User, course.instructor_id)
-        instructors = sess.scalars(
-            select(User).where(User.role == ROLE_INSTRUCTOR)
-        ).all()
-        
+
         # Enrollments
         enrollments = sess.execute(
             select(Enrollment, User)
@@ -440,14 +430,10 @@ def course_detail(course_id: str) -> str:
         ).all()
 
         # Quizzes
-        quizzes = sess.scalars(
-            select(Quiz).where(Quiz.course_id == course_id)
-        ).all()
+        quizzes = sess.scalars(select(Quiz).where(Quiz.course_id == course_id)).all()
 
         # Assignments
-        assignments = sess.scalars(
-            select(Assignment).where(Assignment.course_id == course_id)
-        ).all()
+        assignments = sess.scalars(select(Assignment).where(Assignment.course_id == course_id)).all()
 
         # Certificates issued
         certificates = sess.execute(
@@ -456,11 +442,16 @@ def course_detail(course_id: str) -> str:
             .where(Certificate.course_id == course_id)
         ).all()
 
-    return render_template("admin/course_detail.html",
-                           course=course, instructor=instructor,
-                           enrollments=enrollments, chapters=chapters,
-                           quizzes=quizzes, assignments=assignments,
-                           certificates=certificates)
+    return render_template(
+        "admin/course_detail.html",
+        course=course,
+        instructor=instructor,
+        enrollments=enrollments,
+        chapters=chapters,
+        quizzes=quizzes,
+        assignments=assignments,
+        certificates=certificates,
+    )
 
 
 @bp.post("/courses/<course_id>/reassign")
@@ -665,7 +656,7 @@ def _grades_context(sess: Session) -> dict[str, Any]:
 
 @bp.post("/grades/quiz/<int:attempt_id>/adjust")
 @admin_required
-def grade_quiz_adjust(attempt_id: int) -> Response:
+def grade_quiz_adjust(attempt_id: int) -> Response | tuple[str, int]:
     """Chỉnh sửa điểm quiz (có kiểm tra version)."""
     actor = current_user()
     assert actor is not None
@@ -695,7 +686,7 @@ def grade_quiz_adjust(attempt_id: int) -> Response:
 
 @bp.post("/grades/assignment/<int:submission_id>/adjust")
 @admin_required
-def grade_assignment_adjust(submission_id: int) -> Response:
+def grade_assignment_adjust(submission_id: int) -> Response | tuple[str, int]:
     """Chỉnh sửa điểm assignment (có kiểm tra version)."""
     actor = current_user()
     assert actor is not None
@@ -746,7 +737,12 @@ def certificates() -> str:
         students = sess.scalars(select(User).where(User.role == ROLE_STUDENT)).all()
         courses = sess.scalars(select(Course).where(Course.status == COURSE_PUBLISHED)).all()
 
-    return render_template("admin/certificates.html", certificates=certs, students=students, courses=courses)
+    return render_template(
+        "admin/certificates.html",
+        certificates=certs,
+        students=students,
+        courses=courses,
+    )
 
 
 @bp.post("/certificates/<int:cert_id>/revoke")
@@ -786,7 +782,7 @@ def certificate_issue() -> Response:
         course = sess.get(Course, course_id)
         if not user or not course:
             abort(404)
-        
+
         existing = sess.scalars(
             select(Certificate).where(
                 Certificate.user_id == user_id,
@@ -796,12 +792,14 @@ def certificate_issue() -> Response:
         if existing:
             flash("Người dùng đã có chứng chỉ khóa này.", "error")
         else:
-            sess.add(Certificate(
-                code=f"CERT-{course.id.upper()}-{user_id.upper()}-{int(utcnow().timestamp())}",
-                user_id=user_id,
-                course_id=course_id,
-                final_score=float(final_score),
-            ))
+            sess.add(
+                Certificate(
+                    code=f"CERT-{course.id.upper()}-{user_id.upper()}-{int(utcnow().timestamp())}",
+                    user_id=user_id,
+                    course_id=course_id,
+                    final_score=float(final_score),
+                )
+            )
             flash("Đã cấp chứng chỉ.", "success")
 
     return redirect(url_for("admin.certificates"))
@@ -842,13 +840,15 @@ def badge_create() -> Response:
         flash("Tên huy hiệu là bắt buộc.", "error")
     else:
         with get_db().session() as sess:
-            sess.add(Badge(
-                name=name,
-                description=description,
-                icon=icon,
-                condition_type=condition_type or None,
-                condition_value=condition_value or None,
-            ))
+            sess.add(
+                Badge(
+                    name=name,
+                    description=description,
+                    icon=icon,
+                    condition_type=condition_type or None,
+                    condition_value=condition_value or None,
+                )
+            )
             flash("Đã tạo huy hiệu.", "success")
 
     return redirect(url_for("admin.badges"))
@@ -1033,13 +1033,15 @@ def notification_send() -> Response:
             users = [target] if sess.get(User, target) else []
 
         for uid in users:
-            sess.add(Notification(
-                user_id=uid,
-                kind="SYSTEM",
-                title=title,
-                body=body,
-                link=link or None,
-            ))
+            sess.add(
+                Notification(
+                    user_id=uid,
+                    kind="SYSTEM",
+                    title=title,
+                    body=body,
+                    link=link or None,
+                )
+            )
         flash(f"Đã gửi thông báo đến {len(users)} người dùng.", "success")
 
     return redirect(url_for("admin.notifications"))
@@ -1099,26 +1101,45 @@ def settings_roles() -> str:
 
     # Define all available permissions
     all_permissions = [
-        "view_dashboard", "view_courses", "manage_courses",
-        "view_quizzes", "manage_quizzes", "take_quizzes",
-        "view_assignments", "manage_assignments", "submit_assignments",
-        "view_grades", "manage_grades",
-        "view_certificates", "manage_certificates",
-        "view_forum", "manage_forum", "post_forum",
-        "view_messages", "send_messages",
-        "view_notifications", "send_notifications",
-        "view_profile", "edit_profile",
-        "view_reports", "manage_users",
-        "manage_categories", "manage_badges",
-        "manage_live", "manage_settings",
+        "view_dashboard",
+        "view_courses",
+        "manage_courses",
+        "view_quizzes",
+        "manage_quizzes",
+        "take_quizzes",
+        "view_assignments",
+        "manage_assignments",
+        "submit_assignments",
+        "view_grades",
+        "manage_grades",
+        "view_certificates",
+        "manage_certificates",
+        "view_forum",
+        "manage_forum",
+        "post_forum",
+        "view_messages",
+        "send_messages",
+        "view_notifications",
+        "send_notifications",
+        "view_profile",
+        "edit_profile",
+        "view_reports",
+        "manage_users",
+        "manage_categories",
+        "manage_badges",
+        "manage_live",
+        "manage_settings",
     ]
 
     with get_db().session() as sess:
         settings_list = sess.scalars(select(Setting).where(Setting.key.startswith("role_perms_"))).all()
         current_perms = {s.key[11:]: s.value for s in settings_list}
 
-    return render_template("admin/settings_roles.html", 
-                           all_permissions=all_permissions, current_perms=current_perms)
+    return render_template(
+        "admin/settings_roles.html",
+        all_permissions=all_permissions,
+        current_perms=current_perms,
+    )
 
 
 @bp.post("/settings/roles")
@@ -1204,18 +1225,10 @@ def audit() -> str:
             stmt = stmt.where(AuditEvent.action == action)
         if actor_filter:
             stmt = stmt.where(AuditEvent.actor_id == actor_filter)
-        total = sess.scalar(
-            select(func.count()).select_from(stmt.subquery())
-        ) or 0
-        rows = sess.scalars(
-            stmt.offset((page - 1) * per_page).limit(per_page)
-        ).all()
-        actors = sess.scalars(
-            select(User).where(User.id.in_(select(AuditEvent.actor_id).distinct()))
-        ).all()
-        actions = sess.scalars(
-            select(AuditEvent.action).distinct().order_by(AuditEvent.action)
-        ).all()
+        total = sess.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+        rows = sess.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all()
+        actors = sess.scalars(select(User).where(User.id.in_(select(AuditEvent.actor_id).distinct()))).all()
+        actions = sess.scalars(select(AuditEvent.action).distinct().order_by(AuditEvent.action)).all()
 
     return render_template(
         "admin/audit.html",
@@ -1228,4 +1241,3 @@ def audit() -> str:
         per_page=per_page,
         total=total,
     )
-

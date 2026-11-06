@@ -11,15 +11,13 @@ from sqlalchemy.orm import Session
 from web.models import QuizAttempt, Submission
 
 
-def adjust_assignment_old(
-    sess: Session, submission_id: int, score_raw: str, feedback_raw: str | None = None
-) -> float:
+def adjust_assignment_old(sess: Session, submission_id: int, score_raw: str, feedback_raw: str | None = None) -> float:
     submission = sess.get(Submission, submission_id)
     if submission is None:
         raise LookupError("submission not found")
     old_score = submission.score
-    submission.score = float(score_raw)          # V02: không kiểm tra miền/NaN
-    submission.feedback = feedback_raw or ""     # V03: thiếu field -> xoá nhận xét
+    submission.score = float(score_raw)  # V02: không kiểm tra miền/NaN
+    submission.feedback = feedback_raw or ""  # V03: thiếu field -> xoá nhận xét
     sess.flush()
     return old_score
 

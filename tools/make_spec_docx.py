@@ -10,7 +10,6 @@ import json
 from pathlib import Path
 
 from docx import Document
-from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -32,8 +31,13 @@ ALT_FILL = "F5F8FC"
 # ---------------------------------------------------------------------------
 
 
-def set_run_font(run, size: float | None = None, bold: bool | None = None,
-                 italic: bool | None = None, color: RGBColor | None = None) -> None:
+def set_run_font(
+    run,
+    size: float | None = None,
+    bold: bool | None = None,
+    italic: bool | None = None,
+    color: RGBColor | None = None,
+) -> None:
     run.font.name = "Times New Roman"
     run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
     if size is not None:
@@ -58,7 +62,12 @@ def set_cell_bg(cell, hex_color: str) -> None:
 def set_cell_margins(table, top=40, bottom=40, left=70, right=70) -> None:
     tbl_pr = table._tbl.tblPr
     mar = OxmlElement("w:tblCellMar")
-    for side, val in (("top", top), ("left", left), ("bottom", bottom), ("right", right)):
+    for side, val in (
+        ("top", top),
+        ("left", left),
+        ("bottom", bottom),
+        ("right", right),
+    ):
         node = OxmlElement(f"w:{side}")
         node.set(qn("w:w"), str(val))
         node.set(qn("w:type"), "dxa")
@@ -168,12 +177,30 @@ def bullet(doc: Document, text: str, size: float = 11) -> None:
 # ---------------------------------------------------------------------------
 
 COMPONENTS = [
-    ("CLIENT", "Tầng giao diện chạy trên trình duyệt (Jinja2 + HTML/CSS), nhận dữ liệu đầu vào và hiển thị kết quả."),
-    ("SERVER", "Tầng xử lý nghiệp vụ Flask: blueprint theo vai trò, kiểm soát truy cập, REST API."),
-    ("DATABASE", "PostgreSQL 18 lưu người dùng, khoá học, bài nộp, điểm, thông báo, nhật ký."),
-    ("LƯU TRỮ TỆP", "Thư mục instance/uploads: ảnh đại diện, tài liệu bài giảng, tệp bài nộp."),
-    ("EMAIL", "Dịch vụ gửi thư: khôi phục mật khẩu và thông báo lớp. Chế độ dev ghi ra instance/mail/*.eml."),
-    ("SESSION/TOKEN", "JWT ký HS256 trong cookie httpOnly, kèm bản ghi AuthSession để thu hồi phiên."),
+    (
+        "CLIENT",
+        "Tầng giao diện chạy trên trình duyệt (Jinja2 + HTML/CSS), nhận dữ liệu đầu vào và hiển thị kết quả.",
+    ),
+    (
+        "SERVER",
+        "Tầng xử lý nghiệp vụ Flask: blueprint theo vai trò, kiểm soát truy cập, REST API.",
+    ),
+    (
+        "DATABASE",
+        "PostgreSQL 18 lưu người dùng, khoá học, bài nộp, điểm, thông báo, nhật ký.",
+    ),
+    (
+        "LƯU TRỮ TỆP",
+        "Thư mục instance/uploads: ảnh đại diện, tài liệu bài giảng, tệp bài nộp.",
+    ),
+    (
+        "EMAIL",
+        "Dịch vụ gửi thư: khôi phục mật khẩu và thông báo lớp. Chế độ dev ghi ra instance/mail/*.eml.",
+    ),
+    (
+        "SESSION/TOKEN",
+        "JWT ký HS256 trong cookie httpOnly, kèm bản ghi AuthSession để thu hồi phiên.",
+    ),
 ]
 
 ROLES_LINE = "Vai trò người dùng: SV – Sinh viên; GV – Giảng viên; QT – Quản trị viên."
@@ -182,106 +209,406 @@ SECTIONS: list[tuple[str, list[tuple[str, str, str, str]]]] = [
     (
         "1. Quản lý tài khoản và xác thực",
         [
-            ("Đăng ký tài khoản", "Tạo tài khoản bằng email và mật khẩu; mật khẩu băm bcrypt (cost 10) trước khi lưu; chặn trùng email.", "SV", "CLIENT, SERVER, DATABASE"),
-            ("Đăng nhập", "Xác thực thông tin, cấp JWT và tạo phiên AuthSession; khoá tạm 15 phút sau 5 lần sai.", "Tất cả", "CLIENT, SERVER, DATABASE, SESSION/TOKEN"),
-            ("Đăng xuất", "Thu hồi phiên phía server (revoked_at) và xoá cookie.", "Tất cả", "SERVER, SESSION/TOKEN"),
-            ("Khôi phục mật khẩu", "Gửi email chứa liên kết một lần, hiệu lực 30 phút; token lưu dạng SHA-256, dùng xong vô hiệu.", "Tất cả", "SERVER, DATABASE, EMAIL"),
-            ("Đổi mật khẩu", "Yêu cầu xác nhận mật khẩu hiện tại; thu hồi mọi phiên cũ sau khi đổi.", "Tất cả", "CLIENT, SERVER, DATABASE"),
-            ("Nhật ký đăng nhập", "Ghi LOGIN / LOGIN_FAILED / LOGOUT vào bảng audit_events.", "QT (xem)", "SERVER, DATABASE"),
+            (
+                "Đăng ký tài khoản",
+                "Tạo tài khoản bằng email và mật khẩu; mật khẩu băm bcrypt (cost 10) trước khi lưu; chặn trùng email.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Đăng nhập",
+                "Xác thực thông tin, cấp JWT và tạo phiên AuthSession; khoá tạm 15 phút sau 5 lần sai.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE, SESSION/TOKEN",
+            ),
+            (
+                "Đăng xuất",
+                "Thu hồi phiên phía server (revoked_at) và xoá cookie.",
+                "Tất cả",
+                "SERVER, SESSION/TOKEN",
+            ),
+            (
+                "Khôi phục mật khẩu",
+                "Gửi email chứa liên kết một lần, hiệu lực 30 phút; token lưu dạng SHA-256, dùng xong vô hiệu.",
+                "Tất cả",
+                "SERVER, DATABASE, EMAIL",
+            ),
+            (
+                "Đổi mật khẩu",
+                "Yêu cầu xác nhận mật khẩu hiện tại; thu hồi mọi phiên cũ sau khi đổi.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Nhật ký đăng nhập",
+                "Ghi LOGIN / LOGIN_FAILED / LOGOUT vào bảng audit_events.",
+                "QT (xem)",
+                "SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "2. Hồ sơ người dùng",
         [
-            ("Cập nhật hồ sơ", "Xem và chỉnh sửa họ tên, giới thiệu của chính mình.", "Tất cả", "CLIENT, SERVER, DATABASE"),
-            ("Ảnh đại diện", "Tải lên PNG/JPG/WEBP ≤ 2MB; tệp lưu ngoài static và chỉ phục vụ qua route kiểm tra đăng nhập.", "Tất cả", "CLIENT, SERVER, LƯU TRỮ TỆP"),
-            ("Xem hồ sơ thành viên", "Hiển thị thông tin công khai, khoá đang dạy/học và khoá học chung.", "Tất cả", "CLIENT, SERVER, DATABASE"),
-            ("Cài đặt nhận email", "Bật/tắt nhận thông báo qua email cho tài khoản.", "SV", "CLIENT, SERVER, DATABASE"),
+            (
+                "Cập nhật hồ sơ",
+                "Xem và chỉnh sửa họ tên, giới thiệu của chính mình.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Ảnh đại diện",
+                "Tải lên PNG/JPG/WEBP ≤ 2MB; tệp lưu ngoài static và chỉ phục vụ qua route kiểm tra đăng nhập.",
+                "Tất cả",
+                "CLIENT, SERVER, LƯU TRỮ TỆP",
+            ),
+            (
+                "Xem hồ sơ thành viên",
+                "Hiển thị thông tin công khai, khoá đang dạy/học và khoá học chung.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Cài đặt nhận email",
+                "Bật/tắt nhận thông báo qua email cho tài khoản.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "3. Quản lý khoá học",
         [
-            ("Tra cứu khoá học", "Liệt kê khoá đã xuất bản; tìm theo tên/mô tả, lọc theo danh mục, tag và giảng viên.", "Tất cả", "CLIENT, SERVER, DATABASE"),
-            ("Xem chi tiết khoá", "Mô tả, chương trình, giảng viên, bài kiểm tra, bài tập và số học viên.", "Tất cả", "CLIENT, SERVER, DATABASE"),
-            ("Học thử", "Bài có cờ is_free_preview cho phép khách xem trước nội dung.", "Khách", "CLIENT, SERVER, DATABASE"),
-            ("Tạo khoá học", "GV khởi tạo khoá thuộc quyền mình, kèm mô tả, danh mục, giá, trạng thái.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Cập nhật khoá học", "GV chỉ sửa khoá do mình phụ trách (kiểm tra ownership).", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý chương trình", "Thêm/xoá chương và bài học trong khoá.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Tài liệu bài giảng", "GV tải tài liệu lên; SV phải ghi danh mới tải xuống được.", "GV, SV", "CLIENT, SERVER, LƯU TRỮ TỆP"),
-            ("Ghi danh bằng mã", "SV nhập mã ghi danh duy nhất của khoá để vào lớp.", "SV", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý danh sách lớp", "GV thêm SV theo email hoặc xoá SV khỏi khoá.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Báo cáo khoá học", "Tỷ lệ hoàn thành, điểm trung bình; xuất CSV.", "GV", "SERVER, DATABASE"),
+            (
+                "Tra cứu khoá học",
+                "Liệt kê khoá đã xuất bản; tìm theo tên/mô tả, lọc theo danh mục, tag và giảng viên.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Xem chi tiết khoá",
+                "Mô tả, chương trình, giảng viên, bài kiểm tra, bài tập và số học viên.",
+                "Tất cả",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Học thử",
+                "Bài có cờ is_free_preview cho phép khách xem trước nội dung.",
+                "Khách",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Tạo khoá học",
+                "GV khởi tạo khoá thuộc quyền mình, kèm mô tả, danh mục, giá, trạng thái.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Cập nhật khoá học",
+                "GV chỉ sửa khoá do mình phụ trách (kiểm tra ownership).",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý chương trình",
+                "Thêm/xoá chương và bài học trong khoá.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Tài liệu bài giảng",
+                "GV tải tài liệu lên; SV phải ghi danh mới tải xuống được.",
+                "GV, SV",
+                "CLIENT, SERVER, LƯU TRỮ TỆP",
+            ),
+            (
+                "Ghi danh bằng mã",
+                "SV nhập mã ghi danh duy nhất của khoá để vào lớp.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý danh sách lớp",
+                "GV thêm SV theo email hoặc xoá SV khỏi khoá.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Báo cáo khoá học",
+                "Tỷ lệ hoàn thành, điểm trung bình; xuất CSV.",
+                "GV",
+                "SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "4. Bài tập và đánh giá",
         [
-            ("Tạo bài tập", "GV tạo bài tập kèm mô tả, điểm tối đa và thời hạn nộp.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Nộp bài", "SV nộp văn bản và/hoặc tệp ≤ 20MB; hệ thống chặn nộp sau hạn.", "SV", "CLIENT, SERVER, DATABASE, LƯU TRỮ TỆP"),
-            ("Truy xuất bài nộp", "SV chỉ xem bài của mình; GV xem bài của lớp mình phụ trách.", "SV, GV", "SERVER, DATABASE, LƯU TRỮ TỆP"),
-            ("Chấm điểm và nhận xét", "GV ghi điểm trong [0, max_score] kèm nhận xét; lưu thời điểm chấm.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Tra cứu điểm", "SV chỉ xem kết quả học tập của chính mình.", "SV", "CLIENT, SERVER, DATABASE"),
-            ("Chỉnh sửa điểm", "QT chỉnh điểm quiz/bài nộp toàn hệ thống; mọi thay đổi ghi nhật ký.", "QT", "CLIENT, SERVER, DATABASE"),
+            (
+                "Tạo bài tập",
+                "GV tạo bài tập kèm mô tả, điểm tối đa và thời hạn nộp.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Nộp bài",
+                "SV nộp văn bản và/hoặc tệp ≤ 20MB; hệ thống chặn nộp sau hạn.",
+                "SV",
+                "CLIENT, SERVER, DATABASE, LƯU TRỮ TỆP",
+            ),
+            (
+                "Truy xuất bài nộp",
+                "SV chỉ xem bài của mình; GV xem bài của lớp mình phụ trách.",
+                "SV, GV",
+                "SERVER, DATABASE, LƯU TRỮ TỆP",
+            ),
+            (
+                "Chấm điểm và nhận xét",
+                "GV ghi điểm trong [0, max_score] kèm nhận xét; lưu thời điểm chấm.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Tra cứu điểm",
+                "SV chỉ xem kết quả học tập của chính mình.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Chỉnh sửa điểm",
+                "QT chỉnh điểm quiz/bài nộp toàn hệ thống; mọi thay đổi ghi nhật ký.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "5. Bài kiểm tra trắc nghiệm",
         [
-            ("Tạo bài kiểm tra", "GV thiết lập thời lượng, điểm đạt, số lần làm tối đa, có hiện đáp án hay không.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Ngân hàng câu hỏi", "Thêm/xoá câu hỏi trắc nghiệm, gán vào bài kiểm tra.", "GV", "CLIENT, SERVER, DATABASE"),
-            ("Làm bài kiểm tra", "SV làm bài trong thời lượng quy định, bị giới hạn số lần.", "SV", "CLIENT, SERVER, DATABASE, SESSION/TOKEN"),
-            ("Cưỡng chế thời gian", "Server tính hạn từ started_at; quá hạn đánh dấu EXPIRED, không chấm điểm.", "SV", "SERVER, DATABASE"),
-            ("Chấm điểm tự động", "Đối chiếu đáp án và tính điểm hoàn toàn ở phía server.", "Hệ thống", "SERVER, DATABASE"),
-            ("Xem kết quả", "SV xem điểm; đáp án chỉ hiện khi GV cho phép.", "SV, GV", "CLIENT, SERVER, DATABASE"),
+            (
+                "Tạo bài kiểm tra",
+                "GV thiết lập thời lượng, điểm đạt, số lần làm tối đa, có hiện đáp án hay không.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Ngân hàng câu hỏi",
+                "Thêm/xoá câu hỏi trắc nghiệm, gán vào bài kiểm tra.",
+                "GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Làm bài kiểm tra",
+                "SV làm bài trong thời lượng quy định, bị giới hạn số lần.",
+                "SV",
+                "CLIENT, SERVER, DATABASE, SESSION/TOKEN",
+            ),
+            (
+                "Cưỡng chế thời gian",
+                "Server tính hạn từ started_at; quá hạn đánh dấu EXPIRED, không chấm điểm.",
+                "SV",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Chấm điểm tự động",
+                "Đối chiếu đáp án và tính điểm hoàn toàn ở phía server.",
+                "Hệ thống",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Xem kết quả",
+                "SV xem điểm; đáp án chỉ hiện khi GV cho phép.",
+                "SV, GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "6. Trao đổi và thông báo",
         [
-            ("Diễn đàn khoá học", "Đăng chủ đề và bình luận trong khoá đã ghi danh.", "SV, GV", "CLIENT, SERVER, DATABASE"),
-            ("Tự sửa/xoá nội dung", "Người dùng chỉ được sửa hoặc xoá chủ đề/bình luận của chính mình.", "SV, GV", "CLIENT, SERVER, DATABASE"),
-            ("Kiểm duyệt diễn đàn", "GV/QT ghim, khoá hoặc xoá chủ đề vi phạm.", "GV, QT", "CLIENT, SERVER, DATABASE"),
-            ("Thông báo lớp học", "GV phát thông báo tới toàn bộ SV trong khoá; lưu DB và gửi email.", "GV", "CLIENT, SERVER, DATABASE, EMAIL"),
-            ("Thông báo hệ thống", "QT gửi thông báo tới tất cả hoặc theo nhóm vai trò.", "QT", "CLIENT, SERVER, DATABASE, EMAIL"),
-            ("Xem thông báo", "SV xem danh sách và đánh dấu đã đọc.", "SV", "CLIENT, SERVER, DATABASE"),
-            ("Tin nhắn trực tiếp", "SV nhắn tin với GV của khoá; GV phản hồi trong hộp thư.", "SV, GV", "CLIENT, SERVER, DATABASE"),
-            ("Live session", "GV tạo/lên lịch/xoá buổi học trực tuyến; QT quản lý toàn bộ.", "GV, QT", "CLIENT, SERVER, DATABASE"),
+            (
+                "Diễn đàn khoá học",
+                "Đăng chủ đề và bình luận trong khoá đã ghi danh.",
+                "SV, GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Tự sửa/xoá nội dung",
+                "Người dùng chỉ được sửa hoặc xoá chủ đề/bình luận của chính mình.",
+                "SV, GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Kiểm duyệt diễn đàn",
+                "GV/QT ghim, khoá hoặc xoá chủ đề vi phạm.",
+                "GV, QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Thông báo lớp học",
+                "GV phát thông báo tới toàn bộ SV trong khoá; lưu DB và gửi email.",
+                "GV",
+                "CLIENT, SERVER, DATABASE, EMAIL",
+            ),
+            (
+                "Thông báo hệ thống",
+                "QT gửi thông báo tới tất cả hoặc theo nhóm vai trò.",
+                "QT",
+                "CLIENT, SERVER, DATABASE, EMAIL",
+            ),
+            (
+                "Xem thông báo",
+                "SV xem danh sách và đánh dấu đã đọc.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Tin nhắn trực tiếp",
+                "SV nhắn tin với GV của khoá; GV phản hồi trong hộp thư.",
+                "SV, GV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Live session",
+                "GV tạo/lên lịch/xoá buổi học trực tuyến; QT quản lý toàn bộ.",
+                "GV, QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "7. Quản trị hệ thống",
         [
-            ("Quản lý người dùng", "Tra cứu, lọc, khoá/mở tài khoản và đổi vai trò.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý khoá học", "Xem toàn bộ khoá, đổi trạng thái, xoá, chuyển GV phụ trách.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý danh mục", "Tạo và xoá danh mục khoá học.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý bài kiểm tra/bài tập", "Xem và xoá bài kiểm tra, bài tập toàn hệ thống.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Bảng điểm toàn hệ thống", "Tổng hợp điểm quiz và bài nộp; chỉnh điểm trực tiếp.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý chứng chỉ", "Cấp và thu hồi chứng chỉ cho từng SV.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Quản lý huy hiệu", "Tạo/xoá huy hiệu và điều kiện nhận.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Báo cáo", "Báo cáo tổng hợp, theo khoá học và theo người dùng.", "QT", "CLIENT, SERVER, DATABASE"),
-            ("Nhật ký hoạt động", "Ghi nhận đăng nhập, đổi điểm, thao tác quản trị; lọc theo hành động/người thực hiện.", "QT", "SERVER, DATABASE"),
-            ("Cài đặt hệ thống", "Cấu hình chung, phân quyền và thanh toán.", "QT", "CLIENT, SERVER, DATABASE"),
+            (
+                "Quản lý người dùng",
+                "Tra cứu, lọc, khoá/mở tài khoản và đổi vai trò.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý khoá học",
+                "Xem toàn bộ khoá, đổi trạng thái, xoá, chuyển GV phụ trách.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý danh mục",
+                "Tạo và xoá danh mục khoá học.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý bài kiểm tra/bài tập",
+                "Xem và xoá bài kiểm tra, bài tập toàn hệ thống.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Bảng điểm toàn hệ thống",
+                "Tổng hợp điểm quiz và bài nộp; chỉnh điểm trực tiếp.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý chứng chỉ",
+                "Cấp và thu hồi chứng chỉ cho từng SV.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Quản lý huy hiệu",
+                "Tạo/xoá huy hiệu và điều kiện nhận.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Báo cáo",
+                "Báo cáo tổng hợp, theo khoá học và theo người dùng.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Nhật ký hoạt động",
+                "Ghi nhận đăng nhập, đổi điểm, thao tác quản trị; lọc theo hành động/người thực hiện.",
+                "QT",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Cài đặt hệ thống",
+                "Cấu hình chung, phân quyền và thanh toán.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
     (
         "8. Giao diện lập trình ứng dụng (REST API)",
         [
-            ("Thông tin người dùng", "GET /api/me trả hồ sơ người đang đăng nhập.", "Tất cả", "SERVER, SESSION/TOKEN"),
-            ("Danh sách khoá học", "GET /api/courses hỗ trợ tìm kiếm và lọc theo danh mục/giảng viên.", "Tất cả", "SERVER, DATABASE"),
-            ("Chi tiết khoá học", "GET /api/courses/{id} trả chương, bài, quiz và bài tập.", "Tất cả", "SERVER, DATABASE"),
-            ("Điểm theo khoá", "GET /api/courses/{id}/grades; SV chỉ thấy điểm của mình.", "SV, GV, QT", "SERVER, DATABASE, SESSION/TOKEN"),
-            ("Chi tiết bài tập", "GET /api/assignments/{id} cho SV đã ghi danh hoặc GV/QT.", "SV, GV, QT", "SERVER, DATABASE"),
-            ("Tài liệu API", "GET /api/openapi.json (OpenAPI 3.0) và /api/docs (Swagger UI).", "Tất cả", "SERVER"),
+            (
+                "Thông tin người dùng",
+                "GET /api/me trả hồ sơ người đang đăng nhập.",
+                "Tất cả",
+                "SERVER, SESSION/TOKEN",
+            ),
+            (
+                "Danh sách khoá học",
+                "GET /api/courses hỗ trợ tìm kiếm và lọc theo danh mục/giảng viên.",
+                "Tất cả",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Chi tiết khoá học",
+                "GET /api/courses/{id} trả chương, bài, quiz và bài tập.",
+                "Tất cả",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Điểm theo khoá",
+                "GET /api/courses/{id}/grades; SV chỉ thấy điểm của mình.",
+                "SV, GV, QT",
+                "SERVER, DATABASE, SESSION/TOKEN",
+            ),
+            (
+                "Chi tiết bài tập",
+                "GET /api/assignments/{id} cho SV đã ghi danh hoặc GV/QT.",
+                "SV, GV, QT",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Tài liệu API",
+                "GET /api/openapi.json (OpenAPI 3.0) và /api/docs (Swagger UI).",
+                "Tất cả",
+                "SERVER",
+            ),
         ],
     ),
     (
         "9. Tính năng mở rộng ngoài đặc tả gốc",
         [
-            ("Chứng chỉ", "SV xem và tải chứng chỉ đã đạt; GV/QT cấp hoặc thu hồi.", "SV, GV, QT", "CLIENT, SERVER, DATABASE"),
-            ("Huy hiệu", "Gán huy hiệu theo điều kiện hoạt động học tập.", "QT", "SERVER, DATABASE"),
-            ("Bảng xếp hạng", "Xếp hạng SV theo điểm/hoạt động khi khoá cho phép công khai.", "SV", "CLIENT, SERVER, DATABASE"),
-            ("Cài đặt thanh toán", "Cấu hình cổng thanh toán và hoa hồng giảng viên.", "QT", "CLIENT, SERVER, DATABASE"),
+            (
+                "Chứng chỉ",
+                "SV xem và tải chứng chỉ đã đạt; GV/QT cấp hoặc thu hồi.",
+                "SV, GV, QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Huy hiệu",
+                "Gán huy hiệu theo điều kiện hoạt động học tập.",
+                "QT",
+                "SERVER, DATABASE",
+            ),
+            (
+                "Bảng xếp hạng",
+                "Xếp hạng SV theo điểm/hoạt động khi khoá cho phép công khai.",
+                "SV",
+                "CLIENT, SERVER, DATABASE",
+            ),
+            (
+                "Cài đặt thanh toán",
+                "Cấu hình cổng thanh toán và hoa hồng giảng viên.",
+                "QT",
+                "CLIENT, SERVER, DATABASE",
+            ),
         ],
     ),
 ]

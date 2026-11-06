@@ -55,8 +55,15 @@ def create_web_app(config: dict[str, Any] | None = None) -> Flask:
     cfg: dict[str, Any] = dict(DEFAULT_CONFIG)
     cfg["JWT_SECRET"] = os.environ.get("JWT_SECRET")
     cfg["DATABASE_URL"] = os.environ.get("DATABASE_URL") or _default_database_url()
-    for key in ("UPLOAD_DIR", "MAIL_DIR", "MAIL_FROM", "SMTP_HOST", "SMTP_PORT",
-                "SMTP_USER", "SMTP_PASSWORD"):
+    for key in (
+        "UPLOAD_DIR",
+        "MAIL_DIR",
+        "MAIL_FROM",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USER",
+        "SMTP_PASSWORD",
+    ):
         if os.environ.get(key):
             cfg[key] = os.environ[key]
     if config:

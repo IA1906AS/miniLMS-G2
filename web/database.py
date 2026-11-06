@@ -19,18 +19,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.auth import hash_password
 from web.models import (
+    COURSE_PUBLISHED,
     ROLE_ADMIN,
     ROLE_ALIASES,
     ROLE_GUEST,
     ROLE_INSTRUCTOR,
     ROLE_LABELS,
     ROLE_STUDENT,
-    COURSE_DRAFT,
-    COURSE_PUBLISHED,
-    COURSE_HIDDEN,
-    ENROLL_ACTIVE,
-    ENROLL_COMPLETED,
-    ENROLL_PENDING,
     Assignment,
     Badge,
     Base,
@@ -38,7 +33,6 @@ from web.models import (
     Certificate,
     Chapter,
     Course,
-    CourseTag,
     Enrollment,
     ForumPost,
     ForumTopic,
@@ -58,7 +52,6 @@ ROLE_TEACHER = ROLE_INSTRUCTOR
 
 __all__ = [
     "DEFAULT_SEED",
-    "Database",
     "ROLE_ADMIN",
     "ROLE_ALIASES",
     "ROLE_GUEST",
@@ -66,6 +59,7 @@ __all__ = [
     "ROLE_LABELS",
     "ROLE_STUDENT",
     "ROLE_TEACHER",
+    "Database",
     "User",
     "get_db",
     "normalize_role",
@@ -145,11 +139,7 @@ def _seed_users(sess: Session, data: dict[str, Any]) -> None:
                 role=normalize_role(user["role"]),
                 password_hash=hash_password(user["password"]),
                 full_name=user.get("full_name") or user.get("fullName") or user["email"].split("@")[0],
-                bio=(
-                    "Giảng viên bộ môn."
-                    if normalize_role(user["role"]) == ROLE_INSTRUCTOR
-                    else None
-                ),
+                bio=("Giảng viên bộ môn." if normalize_role(user["role"]) == ROLE_INSTRUCTOR else None),
             )
         )
     sess.flush()
@@ -157,17 +147,18 @@ def _seed_users(sess: Session, data: dict[str, Any]) -> None:
 
 def _seed_taxonomy(sess: Session, data: dict[str, Any] | None = None) -> None:
     import re
+
     def make_slug(text: str) -> str:
         text = text.lower().strip()
-        text = re.sub(r'[àáạảãâầấậẩẫăằắặẳẵ]', 'a', text)
-        text = re.sub(r'[èéẹẻẽêềếệểễ]', 'e', text)
-        text = re.sub(r'[ìíịỉĩ]', 'i', text)
-        text = re.sub(r'[òóọỏõôồốộổỗơờớợởỡ]', 'o', text)
-        text = re.sub(r'[ùúụủũưừứựửữ]', 'u', text)
-        text = re.sub(r'[ỳýỵỷỹ]', 'y', text)
-        text = re.sub(r'[đ]', 'd', text)
-        text = re.sub(r'[^a-z0-9]+', '-', text)
-        return text.strip('-')
+        text = re.sub(r"[àáạảãâầấậẩẫăằắặẳẵ]", "a", text)
+        text = re.sub(r"[èéẹẻẽêềếệểễ]", "e", text)
+        text = re.sub(r"[ìíịỉĩ]", "i", text)
+        text = re.sub(r"[òóọỏõôồốộổỗơờớợởỡ]", "o", text)
+        text = re.sub(r"[ùúụủũưừứựửữ]", "u", text)
+        text = re.sub(r"[ỳýỵỷỹ]", "y", text)
+        text = re.sub(r"[đ]", "d", text)
+        text = re.sub(r"[^a-z0-9]+", "-", text)
+        return text.strip("-")
 
     if data and "categories" in data:
         for cat in data["categories"]:
@@ -225,35 +216,37 @@ def _seed_content(sess: Session, data: dict[str, Any] | None = None) -> None:
     """Seed chapters and lessons from seed.json if available, else generate defaults."""
     if data and "chapters" in data and "lessons" in data:
         for chapter in data["chapters"]:
-            sess.add(Chapter(
-                id=chapter["id"],
-                course_id=chapter["courseId"],
-                title=chapter["title"],
-                position=chapter.get("position", 1),
-            ))
+            sess.add(
+                Chapter(
+                    id=chapter["id"],
+                    course_id=chapter["courseId"],
+                    title=chapter["title"],
+                    position=chapter.get("position", 1),
+                )
+            )
         for lesson in data["lessons"]:
-            sess.add(Lesson(
-                id=lesson["id"],
-                chapter_id=lesson["chapterId"],
-                title=lesson["title"],
-                kind=lesson.get("kind", "text"),
-                position=lesson.get("position", 1),
-                duration_min=lesson.get("duration_min", 0),
-                content=lesson.get("content"),
-                media_url=lesson.get("media_url"),
-                is_free_preview=lesson.get("is_free_preview", False),
-            ))
+            sess.add(
+                Lesson(
+                    id=lesson["id"],
+                    chapter_id=lesson["chapterId"],
+                    title=lesson["title"],
+                    kind=lesson.get("kind", "text"),
+                    position=lesson.get("position", 1),
+                    duration_min=lesson.get("duration_min", 0),
+                    content=lesson.get("content"),
+                    media_url=lesson.get("media_url"),
+                    is_free_preview=lesson.get("is_free_preview", False),
+                )
+            )
     else:
         # Default content generation
         for course in sess.scalars(select(Course).order_by(Course.id)).all():
-            for chapter_index, chapter_title in enumerate(
-                ("Nhập môn", "Thực hành"), start=1
-            ):
+            for chapter_index, chapter_title in enumerate(("Nhập môn", "Thực hành"), start=1):
                 chapter = Chapter(
-                course_id=course.id,
-                title=f"Chương {chapter_index}: {chapter_title}",
-                position=chapter_index,
-            )
+                    course_id=course.id,
+                    title=f"Chương {chapter_index}: {chapter_title}",
+                    position=chapter_index,
+                )
             sess.add(chapter)
             sess.flush()
 
@@ -290,7 +283,7 @@ def _seed_content(sess: Session, data: dict[str, Any] | None = None) -> None:
             sess.add(
                 Question(
                     course_id=course.id,
-                    created_by=teacher_id,
+                    created_by=course.instructor_id,
                     kind="MCQ",
                     prompt="HTTP status nào biểu thị Forbidden?",
                     options=["200", "403", "404", "500"],
@@ -304,30 +297,34 @@ def _seed_content(sess: Session, data: dict[str, Any] | None = None) -> None:
 def _seed_assessments(sess: Session, data: dict[str, Any] | None = None) -> None:
     if data and "quizzes" in data and "questions" in data and "assignments" in data:
         for quiz in data["quizzes"]:
-            sess.add(Quiz(
-                id=quiz["id"],
-                course_id=quiz["courseId"],
-                title=quiz["title"],
-                description=quiz.get("description"),
-                time_limit_min=quiz.get("time_limit_min", 15),
-                pass_score=quiz.get("pass_score", 5.0),
-                max_attempts=quiz.get("max_attempts", 3),
-                show_answers=quiz.get("show_answers", True),
-                status=quiz.get("status", "PUBLISHED"),
-            ))
+            sess.add(
+                Quiz(
+                    id=quiz["id"],
+                    course_id=quiz["courseId"],
+                    title=quiz["title"],
+                    description=quiz.get("description"),
+                    time_limit_min=quiz.get("time_limit_min", 15),
+                    pass_score=quiz.get("pass_score", 5.0),
+                    max_attempts=quiz.get("max_attempts", 3),
+                    show_answers=quiz.get("show_answers", True),
+                    status=quiz.get("status", "PUBLISHED"),
+                )
+            )
         sess.flush()
 
         for question in data["questions"]:
-            sess.add(Question(
-                id=question["id"],
-                course_id=question.get("courseId"),
-                created_by=question.get("createdBy") or "u2",
-                kind=question.get("kind", "MCQ"),
-                prompt=question["prompt"],
-                options=question.get("options", []),
-                answer=question.get("answer", {"index": 0}),
-                points=question.get("points", 1),
-            ))
+            sess.add(
+                Question(
+                    id=question["id"],
+                    course_id=question.get("courseId"),
+                    created_by=question.get("createdBy") or "u2",
+                    kind=question.get("kind", "MCQ"),
+                    prompt=question["prompt"],
+                    options=question.get("options", []),
+                    answer=question.get("answer", {"index": 0}),
+                    points=question.get("points", 1),
+                )
+            )
             # Link question to quiz via QuizQuestion
             quiz_id = question.get("quizId")
             if quiz_id:
@@ -337,6 +334,7 @@ def _seed_assessments(sess: Session, data: dict[str, Any] | None = None) -> None
             due_at = assignment.get("due_at")
             if isinstance(due_at, str):
                 from datetime import datetime
+
                 for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
                     try:
                         due_at = datetime.strptime(due_at, fmt)
@@ -346,19 +344,19 @@ def _seed_assessments(sess: Session, data: dict[str, Any] | None = None) -> None
             else:
                 due_at = None
 
-            sess.add(Assignment(
-                id=assignment["id"],
-                course_id=assignment["courseId"],
-                title=assignment["title"],
-                description=assignment.get("description"),
-                max_score=assignment.get("max_score", 10),
-                due_at=due_at,
-            ))
+            sess.add(
+                Assignment(
+                    id=assignment["id"],
+                    course_id=assignment["courseId"],
+                    title=assignment["title"],
+                    description=assignment.get("description"),
+                    max_score=assignment.get("max_score", 10),
+                    due_at=due_at,
+                )
+            )
     else:
         # Default assessments
-        for index, course in enumerate(
-            sess.scalars(select(Course).order_by(Course.id)).all(), start=1
-        ):
+        for index, course in enumerate(sess.scalars(select(Course).order_by(Course.id)).all(), start=1):
             quiz = Quiz(
                 course_id=course.id,
                 title=f"Kiểm tra chương {index}",
@@ -372,13 +370,9 @@ def _seed_assessments(sess: Session, data: dict[str, Any] | None = None) -> None
             sess.add(quiz)
             sess.flush()
 
-            question = sess.scalars(
-                select(Question).where(Question.course_id == course.id)
-            ).first()
+            question = sess.scalars(select(Question).where(Question.course_id == course.id)).first()
             if question is not None:
-                sess.add(
-                    QuizQuestion(quiz_id=quiz.id, question_id=question.id, position=1)
-                )
+                sess.add(QuizQuestion(quiz_id=quiz.id, question_id=question.id, position=1))
 
             sess.add(
                 Assignment(

@@ -78,7 +78,15 @@ def test_seed_roles(webapp):
 
 @pytest.mark.parametrize(
     "path",
-    ["/", "/courses", "/courses/c1", "/instructors", "/login", "/register", "/forgot-password"],
+    [
+        "/",
+        "/courses",
+        "/courses/c1",
+        "/instructors",
+        "/login",
+        "/register",
+        "/forgot-password",
+    ],
 )
 def test_guest_pages_public(client, path):
     assert client.get(path).status_code == 200
@@ -105,6 +113,7 @@ def test_guest_cannot_reach_student_learn(client):
 
 def test_unknown_route_404(client):
     assert client.get("/khong-co-trang-nay").status_code == 404
+
 
 # ---------- đăng nhập ----------
 
@@ -203,43 +212,44 @@ def test_student_learn_khoa_chua_ghi_danh_bi_403(client):
     login(client, "chi.sv@lms.test")
     assert client.get("/my-courses/c2/learn").status_code == 403
 
+
 # ---------- GIẢNG VIÊN ----------
 
 
 @pytest.mark.parametrize(
-    'path',
+    "path",
     [
-        '/dashboard',
-        '/instructor/courses',
-        '/instructor/courses/new',
-        '/instructor/courses/c1/edit',
-        '/instructor/courses/c1/curriculum',
-        '/instructor/courses/c1/students',
-        '/instructor/courses/c1/reports',
-        '/instructor/quizzes',
-        '/instructor/assignments',
-        '/instructor/grades',
-        '/instructor/certificates',
-        '/instructor/forum',
-        '/instructor/live',
+        "/dashboard",
+        "/instructor/courses",
+        "/instructor/courses/new",
+        "/instructor/courses/c1/edit",
+        "/instructor/courses/c1/curriculum",
+        "/instructor/courses/c1/students",
+        "/instructor/courses/c1/reports",
+        "/instructor/quizzes",
+        "/instructor/assignments",
+        "/instructor/grades",
+        "/instructor/certificates",
+        "/instructor/forum",
+        "/instructor/live",
     ],
 )
 def test_instructor_routes(client, path):
-    assert login(client, 'an.gv@lms.test').status_code == 302
+    assert login(client, "an.gv@lms.test").status_code == 302
     assert client.get(path).status_code == 200
 
 
 def test_instructor_chi_sua_duoc_khoa_minh_day(client):
     """Spec dòng 147: ownership check. an.gv dạy c1, không dạy c2."""
-    login(client, 'an.gv@lms.test')
-    assert client.get('/instructor/courses/c1/edit').status_code == 200
-    assert client.get('/instructor/courses/c2/edit').status_code == 403
+    login(client, "an.gv@lms.test")
+    assert client.get("/instructor/courses/c1/edit").status_code == 200
+    assert client.get("/instructor/courses/c2/edit").status_code == 403
 
 
 def test_instructor_khong_vao_duoc_khu_student(client):
-    login(client, 'an.gv@lms.test')
-    assert client.get('/my-courses').status_code == 403
-    assert client.get('/grades').status_code == 403
+    login(client, "an.gv@lms.test")
+    assert client.get("/my-courses").status_code == 403
+    assert client.get("/grades").status_code == 403
 
 
 def test_instructor_tao_khoa_hoc(client, webapp):
@@ -247,39 +257,37 @@ def test_instructor_tao_khoa_hoc(client, webapp):
 
     from web.models import Course
 
-    login(client, 'an.gv@lms.test')
+    login(client, "an.gv@lms.test")
     res = client.post(
-        '/instructor/courses/new',
+        "/instructor/courses/new",
         data={
-            'title': 'Khoá thử nghiệm',
-            'description': 'mô tả',
-            'price': '0',
-            'status': 'DRAFT',
+            "title": "Khoá thử nghiệm",
+            "description": "mô tả",
+            "price": "0",
+            "status": "DRAFT",
         },
     )
     assert res.status_code == 302
     with webapp.extensions["lms_db"].session() as sess:
-        assert sess.scalars(
-            select(Course).where(Course.title == 'Khoá thử nghiệm')
-        ).first()
+        assert sess.scalars(select(Course).where(Course.title == "Khoá thử nghiệm")).first()
 
 
 # ---------- ADMIN ----------
 
 
 def test_admin_dashboard(client):
-    login(client, 'admin@lms.test')
-    res = client.get('/dashboard')
+    login(client, "admin@lms.test")
+    res = client.get("/dashboard")
     assert res.status_code == 200
     body = res.get_data(as_text=True)
-    assert 'người dùng' in body
-    assert 'lượt ghi danh' in body
+    assert "người dùng" in body
+    assert "lượt ghi danh" in body
 
 
 def test_admin_khong_vao_khu_instructor(client):
     """Spec: /instructor/* chỉ GV."""
-    login(client, 'admin@lms.test')
-    assert client.get('/instructor/courses').status_code == 403
+    login(client, "admin@lms.test")
+    assert client.get("/instructor/courses").status_code == 403
 
 
 def test_admin_bang_diem_hien_thi_du_lieu(client, webapp):
@@ -288,16 +296,14 @@ def test_admin_bang_diem_hien_thi_du_lieu(client, webapp):
 
     from web.models import Assignment, Quiz, QuizAttempt, Submission, utcnow
 
-    with webapp.extensions['lms_db'].session() as sess:
-        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
-        assignment = sess.scalars(
-            select(Assignment).where(Assignment.course_id == 'c1')
-        ).first()
+    with webapp.extensions["lms_db"].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == "c1")).first()
+        assignment = sess.scalars(select(Assignment).where(Assignment.course_id == "c1")).first()
         sess.add(
             QuizAttempt(
                 quiz_id=quiz.id,
-                student_id='u4',
-                status='SUBMITTED',
+                student_id="u4",
+                status="SUBMITTED",
                 score=7.5,
                 passed=True,
                 started_at=utcnow(),
@@ -307,21 +313,22 @@ def test_admin_bang_diem_hien_thi_du_lieu(client, webapp):
         sess.add(
             Submission(
                 assignment_id=assignment.id,
-                student_id='u4',
-                text='Bài làm',
+                student_id="u4",
+                text="Bài làm",
                 submitted_at=utcnow(),
                 score=8.0,
-                feedback='Tốt',
+                feedback="Tốt",
                 graded_at=utcnow(),
             )
         )
 
-    login(client, 'admin@lms.test')
-    res = client.get('/admin/grades')
+    login(client, "admin@lms.test")
+    res = client.get("/admin/grades")
     assert res.status_code == 200
     body = res.get_data(as_text=True)
-    assert 'Bảng điểm toàn hệ thống' in body
-    assert 'Chi Nguyễn' in body
+    assert "Bảng điểm toàn hệ thống" in body
+    assert "Chi Nguyễn" in body
+
 
 # ---------- QUIZ ----------
 
@@ -331,10 +338,10 @@ def test_quiz_intro_cho_sinh_vien_ghi_danh(client, webapp):
 
     from web.models import Quiz
 
-    with webapp.extensions['lms_db'].session() as sess:
-        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
-    login(client, 'chi.sv@lms.test')
-    assert client.get(f'/quizzes/{quiz.id}').status_code == 200
+    with webapp.extensions["lms_db"].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == "c1")).first()
+    login(client, "chi.sv@lms.test")
+    assert client.get(f"/quizzes/{quiz.id}").status_code == 200
 
 
 def test_quiz_luong_lam_bai_va_cham_diem(client, webapp):
@@ -342,40 +349,34 @@ def test_quiz_luong_lam_bai_va_cham_diem(client, webapp):
 
     from web.models import Question, Quiz, QuizAttempt, QuizQuestion
 
-    with webapp.extensions['lms_db'].session() as sess:
-        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
+    with webapp.extensions["lms_db"].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == "c1")).first()
         questions = sess.scalars(
             select(Question)
             .join(QuizQuestion, QuizQuestion.question_id == Question.id)
             .where(QuizQuestion.quiz_id == quiz.id)
         ).all()
-        correct_answers = {
-            q.id: q.options[q.answer['index']] for q in questions
-        }
+        correct_answers = {q.id: q.options[q.answer["index"]] for q in questions}
         quiz_id = quiz.id
 
-    login(client, 'chi.sv@lms.test')
-    res = client.post(f'/quizzes/{quiz_id}/start')
+    login(client, "chi.sv@lms.test")
+    res = client.post(f"/quizzes/{quiz_id}/start")
     assert res.status_code == 302
 
-    with webapp.extensions['lms_db'].session() as sess:
+    with webapp.extensions["lms_db"].session() as sess:
         attempt = sess.scalars(
-            select(QuizAttempt).where(
-                QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == 'u4'
-            )
+            select(QuizAttempt).where(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == "u4")
         ).first()
         attempt_id = attempt.id
 
     # Submit answers for all questions
-    submit_data = {f'q_{qid}': answer for qid, answer in correct_answers.items()}
-    res = client.post(
-        f'/quizzes/{quiz_id}/attempts/{attempt_id}/submit', data=submit_data
-    )
+    submit_data = {f"q_{qid}": answer for qid, answer in correct_answers.items()}
+    res = client.post(f"/quizzes/{quiz_id}/attempts/{attempt_id}/submit", data=submit_data)
     assert res.status_code == 302
 
-    with webapp.extensions['lms_db'].session() as sess:
+    with webapp.extensions["lms_db"].session() as sess:
         attempt = sess.get(QuizAttempt, attempt_id)
-        assert attempt.status == 'SUBMITTED'
+        assert attempt.status == "SUBMITTED"
         assert attempt.score == 10.0
         assert attempt.passed is True
 
@@ -385,9 +386,9 @@ def test_quiz_guest_bi_chan(client, webapp):
 
     from web.models import Quiz
 
-    with webapp.extensions['lms_db'].session() as sess:
+    with webapp.extensions["lms_db"].session() as sess:
         quiz = sess.scalars(select(Quiz)).first()
-    assert client.get(f'/quizzes/{quiz.id}').status_code == 302
+    assert client.get(f"/quizzes/{quiz.id}").status_code == 302
 
 
 # ---------- BÀI TẬP ----------
@@ -398,35 +399,33 @@ def test_assignment_nop_va_cham_diem(client, webapp):
 
     from web.models import Assignment, Submission
 
-    with webapp.extensions['lms_db'].session() as sess:
-        assignment = sess.scalars(select(Assignment).where(Assignment.course_id == 'c1')).first()
+    with webapp.extensions["lms_db"].session() as sess:
+        assignment = sess.scalars(select(Assignment).where(Assignment.course_id == "c1")).first()
         aid = assignment.id
 
-    login(client, 'chi.sv@lms.test')
-    res = client.post(f'/assignments/{aid}/submit', data={'text': 'Bài làm của em'})
+    login(client, "chi.sv@lms.test")
+    res = client.post(f"/assignments/{aid}/submit", data={"text": "Bài làm của em"})
     assert res.status_code == 302
 
-    with webapp.extensions['lms_db'].session() as sess:
+    with webapp.extensions["lms_db"].session() as sess:
         submission = sess.scalars(
-            select(Submission).where(
-                Submission.assignment_id == aid, Submission.student_id == 'u4'
-            )
+            select(Submission).where(Submission.assignment_id == aid, Submission.student_id == "u4")
         ).first()
         sid = submission.id
         version = submission.version
 
     # GV chấm điểm (kèm version hiện tại — optimistic locking)
     grader = webapp.test_client()
-    login(grader, 'an.gv@lms.test')
+    login(grader, "an.gv@lms.test")
     res = grader.post(
-        f'/assignments/{aid}/submissions/{sid}/grade',
-        data={'score': '9', 'feedback': 'Tốt', 'version': str(version)},
+        f"/assignments/{aid}/submissions/{sid}/grade",
+        data={"score": "9", "feedback": "Tốt", "version": str(version)},
     )
     assert res.status_code == 302
-    with webapp.extensions['lms_db'].session() as sess:
+    with webapp.extensions["lms_db"].session() as sess:
         submission = sess.get(Submission, sid)
         assert submission.score == 9.0
-        assert submission.feedback == 'Tốt'
+        assert submission.feedback == "Tốt"
         assert submission.version == version + 1
 
 
@@ -434,79 +433,79 @@ def test_assignment_nop_va_cham_diem(client, webapp):
 
 
 def test_register_page_get(client):
-    res = client.get('/register')
+    res = client.get("/register")
     assert res.status_code == 200
-    assert 'Đăng ký tài khoản' in res.get_data(as_text=True)
+    assert "Đăng ký tài khoản" in res.get_data(as_text=True)
 
 
 def test_register_success(client):
     res = client.post(
-        '/register',
+        "/register",
         data={
-            'email': 'newbie@lms.test',
-            'password': 'Password@123',
-            'confirm_password': 'Password@123',
-            'role': 'STUDENT',
+            "email": "newbie@lms.test",
+            "password": "Password@123",
+            "confirm_password": "Password@123",
+            "role": "STUDENT",
         },
     )
     assert res.status_code == 302
-    assert client.get('/dashboard').status_code == 200
+    assert client.get("/dashboard").status_code == 200
 
 
 def test_register_validation_password_yeu(client):
     res = client.post(
-        '/register',
-        data={'email': 'bad@lms.test', 'password': '123', 'confirm_password': '123'},
+        "/register",
+        data={"email": "bad@lms.test", "password": "123", "confirm_password": "123"},
     )
     assert res.status_code == 400
-    assert 'ít nhất 8 ký tự' in res.get_data(as_text=True)
+    assert "ít nhất 8 ký tự" in res.get_data(as_text=True)
 
 
 def test_register_password_khong_khop(client):
     res = client.post(
-        '/register',
+        "/register",
         data={
-            'email': 'mismatch@lms.test',
-            'password': 'Password@123',
-            'confirm_password': 'DifferentPassword@123',
+            "email": "mismatch@lms.test",
+            "password": "Password@123",
+            "confirm_password": "DifferentPassword@123",
         },
     )
     assert res.status_code == 400
-    assert 'không khớp' in res.get_data(as_text=True)
+    assert "không khớp" in res.get_data(as_text=True)
 
 
 def test_register_email_trung(client):
     res = client.post(
-        '/register',
+        "/register",
         data={
-            'email': 'chi.sv@lms.test',
-            'password': 'Password@123',
-            'confirm_password': 'Password@123',
+            "email": "chi.sv@lms.test",
+            "password": "Password@123",
+            "confirm_password": "Password@123",
         },
     )
     assert res.status_code == 400
-    assert 'đã được sử dụng' in res.get_data(as_text=True)
+    assert "đã được sử dụng" in res.get_data(as_text=True)
 
 
 # ---------- QUÊN / ĐẶT LẠI MẬT KHẨU ----------
 
 
 def test_forgot_password_page_get(client):
-    res = client.get('/forgot-password')
+    res = client.get("/forgot-password")
     assert res.status_code == 200
-    assert 'Quên mật khẩu' in res.get_data(as_text=True)
+    assert "Quên mật khẩu" in res.get_data(as_text=True)
 
 
 def test_forgot_password_gui_lien_ket(client):
-    res = client.post('/forgot-password', data={'email': 'chi.sv@lms.test'})
+    res = client.post("/forgot-password", data={"email": "chi.sv@lms.test"})
     assert res.status_code == 200
     # Không đổi mật khẩu trực tiếp: chỉ gửi liên kết.
-    assert 'liên kết đặt lại mật khẩu' in res.get_data(as_text=True)
-    assert login(client, 'chi.sv@lms.test', 'Lms@2026').status_code == 302
+    assert "liên kết đặt lại mật khẩu" in res.get_data(as_text=True)
+    assert login(client, "chi.sv@lms.test", "Lms@2026").status_code == 302
 
 
 def test_forgot_password_email_khong_ton_tai(client):
-    res = client.post('/forgot-password', data={'email': 'notfound@lms.test'})
+    res = client.post("/forgot-password", data={"email": "notfound@lms.test"})
     # Chống liệt kê tài khoản: luôn trả cùng một thông báo.
     assert res.status_code == 200
-    assert 'Nếu email tồn tại' in res.get_data(as_text=True)
+    assert "Nếu email tồn tại" in res.get_data(as_text=True)

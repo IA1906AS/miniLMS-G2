@@ -50,9 +50,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     # 4. Validate JWT_SECRET: required, >= 32 characters
     secret = app.config.get("JWT_SECRET")
     if not secret or not isinstance(secret, str) or len(secret) < 32:
-        raise RuntimeError(
-            "JWT_SECRET is required and must be at least 32 characters long."
-        )
+        raise RuntimeError("JWT_SECRET is required and must be at least 32 characters long.")
 
     # 5. Initialize fresh in-memory store from seed
     seed_file = app.config.get("SEED_PATH", "seed.json")

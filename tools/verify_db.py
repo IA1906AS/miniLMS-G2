@@ -28,12 +28,7 @@ def main() -> int:
         with db.engine.connect() as conn:
             version = conn.execute(text("select version()")).scalar()
             print("server:", version)
-            rows = conn.execute(
-                text(
-                    "select tablename from pg_tables "
-                    "where schemaname='public' order by 1"
-                )
-            ).fetchall()
+            rows = conn.execute(text("select tablename from pg_tables where schemaname='public' order by 1")).fetchall()
             print("tables:", len(rows))
             for (name,) in rows:
                 count = conn.execute(text(f'select count(*) from "{name}"')).scalar()

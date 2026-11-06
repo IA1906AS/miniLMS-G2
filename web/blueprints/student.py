@@ -22,30 +22,30 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 from werkzeug.wrappers import Response
 
+from app.auth import hash_password, verify_password
 from web.audit import record as audit_record
 from web.auth import current_user, student_required
-from app.auth import hash_password, verify_password
 from web.database import get_db
 from web.models import (
     COURSE_PUBLISHED,
     ENROLL_ACTIVE,
     ROLE_INSTRUCTOR,
     ROLE_STUDENT,
+    Assignment,
     Certificate,
     Chapter,
     Course,
+    DirectMessage,
     Enrollment,
+    ForumPost,
+    ForumTopic,
     Lesson,
     LessonProgress,
+    Notification,
     Quiz,
     QuizAttempt,
     Submission,
-    Assignment,
     User,
-    DirectMessage,
-    Notification,
-    ForumTopic,
-    ForumPost,
     utcnow,
 )
 
@@ -114,9 +114,7 @@ def completed_count(sess: Session, student_id: str, course_id: str) -> int:
     )
 
 
-def completed_lesson_ids(
-    sess: Session, student_id: str, course_id: str
-) -> set[int]:
+def completed_lesson_ids(sess: Session, student_id: str, course_id: str) -> set[int]:
     rows = sess.scalars(
         select(LessonProgress.lesson_id)
         .join(Lesson, LessonProgress.lesson_id == Lesson.id)
@@ -129,9 +127,7 @@ def completed_lesson_ids(
     return set(rows)
 
 
-def require_enrollment(
-    sess: Session, actor: dict[str, Any], course_id: str
-) -> Enrollment:
+def require_enrollment(sess: Session, actor: dict[str, Any], course_id: str) -> Enrollment:
     """Spec dòng 148: SV chỉ vào /learn khi có enrollment active."""
     enrollment = sess.scalars(
         select(Enrollment).where(
@@ -147,9 +143,7 @@ def require_enrollment(
 
 def course_curriculum(sess: Session, course_id: str) -> list[dict[str, Any]]:
     chapters = sess.scalars(
-        select(Chapter)
-        .where(Chapter.course_id == course_id)
-        .order_by(Chapter.position, Chapter.id)
+        select(Chapter).where(Chapter.course_id == course_id).order_by(Chapter.position, Chapter.id)
     ).all()
     out = []
     for chapter in chapters:
@@ -248,12 +242,8 @@ def learn(course_id: str) -> str:
         chapters = course_curriculum(sess, course_id)
         done = completed_lesson_ids(sess, actor["id"], course_id)
         total = lesson_count(sess, course_id)
-        quizzes = sess.scalars(
-            select(Quiz).where(Quiz.course_id == course_id, Quiz.status == COURSE_PUBLISHED)
-        ).all()
-        assignments = sess.scalars(
-            select(Assignment).where(Assignment.course_id == course_id)
-        ).all()
+        quizzes = sess.scalars(select(Quiz).where(Quiz.course_id == course_id, Quiz.status == COURSE_PUBLISHED)).all()
+        assignments = sess.scalars(select(Assignment).where(Assignment.course_id == course_id)).all()
 
         first_lesson = None
         for block in chapters:
@@ -336,16 +326,12 @@ def complete_lesson(course_id: str, lesson_id: int) -> Response:
             )
         ).first()
         if existing is None:
-            sess.add(
-                LessonProgress(lesson_id=lesson_id, student_id=actor["id"])
-            )
+            sess.add(LessonProgress(lesson_id=lesson_id, student_id=actor["id"]))
             flash("Đã đánh dấu hoàn thành bài học.", "success")
         else:
             flash("Bài học này đã được đánh dấu hoàn thành.", "info")
 
-    return redirect(
-        url_for("student.learn_lesson", course_id=course_id, lesson_id=lesson_id)
-    )
+    return redirect(url_for("student.learn_lesson", course_id=course_id, lesson_id=lesson_id))
 
 
 # ---------------------------------------------------------------------------
@@ -393,9 +379,7 @@ def grades() -> str:
     return render_template(
         "student/grades.html",
         quiz_rows=quiz_rows,
-        submission_rows=[
-            {"submission": s, "assignment": a} for s, a in submission_rows
-        ],
+        submission_rows=[{"submission": s, "assignment": a} for s, a in submission_rows],
     )
 
 
@@ -414,9 +398,7 @@ def progress() -> str:
         rows = my_enrollments(sess, actor["id"])
         overall_total = sum(row["total"] for row in rows)
         overall_done = sum(row["done"] for row in rows)
-        overall_percent = (
-            round(overall_done * 100 / overall_total) if overall_total else 0
-        )
+        overall_percent = round(overall_done * 100 / overall_total) if overall_total else 0
         study_minutes = (
             sess.scalar(
                 select(func.coalesce(func.sum(Lesson.duration_min), 0))
@@ -469,9 +451,7 @@ def certificate_detail(code: str) -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        certificate = sess.scalars(
-            select(Certificate).where(Certificate.code == code)
-        ).first()
+        certificate = sess.scalars(select(Certificate).where(Certificate.code == code)).first()
         if certificate is None:
             abort(404)
         if certificate.user_id != actor["id"]:
@@ -522,7 +502,7 @@ def leaderboard() -> str:
                     Enrollment.status == ENROLL_ACTIVE,
                 )
             ).all()
-            entries = []
+            entries: list[dict[str, Any]] = []
             for student_id in student_ids:
                 student = sess.get(User, student_id)
                 if student is None:
@@ -583,9 +563,7 @@ def forum_index() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        enrollments = sess.scalars(
-            select(Enrollment).where(Enrollment.student_id == actor["id"])
-        ).all()
+        enrollments = sess.scalars(select(Enrollment).where(Enrollment.student_id == actor["id"])).all()
         course_ids = [e.course_id for e in enrollments]
 
         forum_data = []
@@ -602,19 +580,23 @@ def forum_index() -> str:
             topic_list = []
             for topic in topics:
                 author = sess.get(User, topic.author_id)
-                replies = sess.scalar(
-                    select(func.count()).select_from(ForumPost).where(ForumPost.topic_id == topic.id)
-                ) or 0
-                topic_list.append({
-                    "topic": topic,
-                    "author": author,
-                    "replies": replies,
-                })
-            forum_data.append({
-                "course": course,
-                "instructor": instructor,
-                "topics": topic_list,
-            })
+                replies = (
+                    sess.scalar(select(func.count()).select_from(ForumPost).where(ForumPost.topic_id == topic.id)) or 0
+                )
+                topic_list.append(
+                    {
+                        "topic": topic,
+                        "author": author,
+                        "replies": replies,
+                    }
+                )
+            forum_data.append(
+                {
+                    "course": course,
+                    "instructor": instructor,
+                    "topics": topic_list,
+                }
+            )
 
     return render_template("student/forum_index.html", forum_data=forum_data)
 
@@ -641,14 +623,16 @@ def forum_course(course_id: str) -> str:
         topic_list = []
         for topic in topics:
             author = sess.get(User, topic.author_id)
-            replies = sess.scalar(
-                select(func.count()).select_from(ForumPost).where(ForumPost.topic_id == topic.id)
-            ) or 0
-            topic_list.append({
-                "topic": topic,
-                "author": author,
-                "replies": replies,
-            })
+            replies = (
+                sess.scalar(select(func.count()).select_from(ForumPost).where(ForumPost.topic_id == topic.id)) or 0
+            )
+            topic_list.append(
+                {
+                    "topic": topic,
+                    "author": author,
+                    "replies": replies,
+                }
+            )
 
     return render_template("student/forum_course.html", course=course, topics=topic_list)
 
@@ -666,11 +650,9 @@ def forum_topic(course_id: str, topic_id: int) -> str:
         if not topic or topic.course_id != course_id:
             abort(404)
         course = sess.get(Course, course_id)
-        
+
         posts = sess.scalars(
-            select(ForumPost)
-            .where(ForumPost.topic_id == topic_id)
-            .order_by(ForumPost.created_at)
+            select(ForumPost).where(ForumPost.topic_id == topic_id).order_by(ForumPost.created_at)
         ).all()
 
         post_list = []
@@ -678,7 +660,13 @@ def forum_topic(course_id: str, topic_id: int) -> str:
             author = sess.get(User, post.author_id)
             post_list.append({"post": post, "author": author})
 
-    return render_template("student/forum_topic.html", course=course, course_id=course_id, topic=topic, posts=post_list)
+    return render_template(
+        "student/forum_topic.html",
+        course=course,
+        course_id=course_id,
+        topic=topic,
+        posts=post_list,
+    )
 
 
 @bp.post("/forum/<course_id>/topic/new")
@@ -790,9 +778,7 @@ def forum_topic_delete(course_id: str, topic_id: int) -> Response:
             abort(404)
         if topic.author_id != actor["id"]:
             abort(403)
-        for post in sess.scalars(
-            select(ForumPost).where(ForumPost.topic_id == topic_id)
-        ).all():
+        for post in sess.scalars(select(ForumPost).where(ForumPost.topic_id == topic_id)).all():
             sess.delete(post)
         sess.delete(topic)
         sess.flush()
@@ -865,9 +851,7 @@ def messages_index() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        enrollments = sess.scalars(
-            select(Enrollment).where(Enrollment.student_id == actor["id"])
-        ).all()
+        enrollments = sess.scalars(select(Enrollment).where(Enrollment.student_id == actor["id"])).all()
 
         conversations = []
         for enrollment in enrollments:
@@ -884,27 +868,40 @@ def messages_index() -> str:
                 .join(User, DirectMessage.sender_id == User.id)
                 .where(
                     or_(
-                        and_(DirectMessage.sender_id == actor["id"], DirectMessage.recipient_id == instructor.id),
-                        and_(DirectMessage.sender_id == instructor.id, DirectMessage.recipient_id == actor["id"]),
+                        and_(
+                            DirectMessage.sender_id == actor["id"],
+                            DirectMessage.recipient_id == instructor.id,
+                        ),
+                        and_(
+                            DirectMessage.sender_id == instructor.id,
+                            DirectMessage.recipient_id == actor["id"],
+                        ),
                     )
                 )
                 .order_by(DirectMessage.created_at.desc())
             ).first()
 
-            unread = sess.scalar(
-                select(func.count()).select_from(DirectMessage).where(
-                    DirectMessage.recipient_id == actor["id"],
-                    DirectMessage.sender_id == instructor.id,
-                    DirectMessage.read_at.is_(None),
+            unread = (
+                sess.scalar(
+                    select(func.count())
+                    .select_from(DirectMessage)
+                    .where(
+                        DirectMessage.recipient_id == actor["id"],
+                        DirectMessage.sender_id == instructor.id,
+                        DirectMessage.read_at.is_(None),
+                    )
                 )
-            ) or 0
+                or 0
+            )
 
-            conversations.append({
-                "course": course,
-                "instructor": instructor,
-                "last_message": last_msg,
-                "unread": unread,
-            })
+            conversations.append(
+                {
+                    "course": course,
+                    "instructor": instructor,
+                    "last_message": last_msg,
+                    "unread": unread,
+                }
+            )
 
     return render_template("student/messages_index.html", conversations=conversations)
 
@@ -925,9 +922,7 @@ def messages_conversation(instructor_id: str) -> str:
         common = sess.scalars(
             select(Enrollment).where(
                 Enrollment.student_id == actor["id"],
-                Enrollment.course_id.in_(
-                    select(Course.id).where(Course.instructor_id == instructor_id)
-                )
+                Enrollment.course_id.in_(select(Course.id).where(Course.instructor_id == instructor_id)),
             )
         ).first()
         if not common:
@@ -950,8 +945,14 @@ def messages_conversation(instructor_id: str) -> str:
             .join(User, DirectMessage.sender_id == User.id)
             .where(
                 or_(
-                    and_(DirectMessage.sender_id == actor["id"], DirectMessage.recipient_id == instructor_id),
-                    and_(DirectMessage.sender_id == instructor_id, DirectMessage.recipient_id == actor["id"]),
+                    and_(
+                        DirectMessage.sender_id == actor["id"],
+                        DirectMessage.recipient_id == instructor_id,
+                    ),
+                    and_(
+                        DirectMessage.sender_id == instructor_id,
+                        DirectMessage.recipient_id == actor["id"],
+                    ),
                 )
             )
             .order_by(DirectMessage.created_at)
@@ -1098,4 +1099,3 @@ def profile_password() -> str | Response:
                 return redirect(url_for("student.profile"))
 
     return render_template("student/profile_password.html", user=user)
-

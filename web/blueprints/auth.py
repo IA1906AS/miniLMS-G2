@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import timedelta
+from typing import Any
 
 from flask import (
     Blueprint,
@@ -35,7 +36,6 @@ from web.auth import (
 from web.database import get_db
 from web.mailer import send_password_reset
 from web.models import (
-    ROLE_ADMIN,
     ROLE_INSTRUCTOR,
     ROLE_STUDENT,
     USER_STATUS_ACTIVE,
@@ -56,7 +56,7 @@ def _safe_next(target: str | None) -> str | None:
     return None
 
 
-def _redirect_after_login(actor: dict) -> Response:
+def _redirect_after_login(actor: dict[str, Any]) -> Response:
     nxt = _safe_next(request.args.get("next") or request.form.get("next"))
     target = nxt or url_for(ROLE_HOME.get(actor["role"], ROLE_HOME[ROLE_STUDENT]))
     return attach_session(redirect(target), actor["id"])
@@ -83,19 +83,14 @@ def login() -> tuple[str, int] | Response:
                 error = str(exc)
                 logged = None
             except Exception:
-                error = (
-                    "Tài khoản tạm thời bị khoá do đăng nhập sai quá nhiều lần. "
-                    "Thử lại sau 15 phút."
-                )
+                error = "Tài khoản tạm thời bị khoá do đăng nhập sai quá nhiều lần. Thử lại sau 15 phút."
                 logged = None
 
             if logged is None:
                 error = error or "Email hoặc mật khẩu không đúng."
                 audit_record("LOGIN_FAILED", f"email:{email.strip().lower()}")
             else:
-                audit_record(
-                    "LOGIN", f"user:{logged['id']}", actor_id=logged["id"]
-                )
+                audit_record("LOGIN", f"user:{logged['id']}", actor_id=logged["id"])
                 return _redirect_after_login(logged)
 
     status = 401 if error and request.method == "POST" else 200
@@ -138,9 +133,7 @@ def register() -> tuple[str, int] | Response:
 
         if not error:
             with get_db().session() as sess:
-                exists = sess.scalars(
-                    select(User.id).where(func.lower(User.email) == email)
-                ).first()
+                exists = sess.scalars(select(User.id).where(func.lower(User.email) == email)).first()
                 if exists:
                     error = "Email này đã được sử dụng."
                 else:
@@ -192,9 +185,7 @@ def forgot_password() -> tuple[str, int] | str:
             user_email: str | None = None
             ttl = int(current_app.config.get("RESET_TOKEN_TTL_MINUTES", 30))
             with get_db().session() as sess:
-                user = sess.scalars(
-                    select(User).where(func.lower(User.email) == email)
-                ).first()
+                user = sess.scalars(select(User).where(func.lower(User.email) == email)).first()
                 if user is not None:
                     raw_token = secrets.token_urlsafe(32)
                     digest = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
@@ -206,23 +197,17 @@ def forgot_password() -> tuple[str, int] | str:
                         )
                     )
                     user_email = user.email
-                    reset_url = url_for(
-                        "auth.reset_password", token=raw_token, _external=True
-                    )
+                    base = current_app.config.get("PUBLIC_BASE_URL") or request.host_url
+                    reset_url = base.rstrip("/") + url_for("auth.reset_password", token=raw_token)
             if user_email is not None:
                 send_password_reset(user_email, reset_url, ttl)
                 audit_record("PASSWORD_RESET_REQUESTED", f"email:{user_email}")
             # Luôn trả thông báo chung: không tiết lộ email có tồn tại hay không.
-            success = (
-                "Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu "
-                f"đã được gửi (hiệu lực {ttl} phút)."
-            )
+            success = f"Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi (hiệu lực {ttl} phút)."
 
     status = 400 if error and request.method == "POST" else 200
     return (
-        render_template(
-            "auth/forgot.html", error=error, success=success, email=email
-        ),
+        render_template("auth/forgot.html", error=error, success=success, email=email),
         status,
     )
 
@@ -236,19 +221,14 @@ def reset_password(token: str) -> tuple[str, int] | str:
     valid_link = False
 
     with get_db().session() as sess:
-        record_row = sess.scalars(
-            select(PasswordResetToken).where(PasswordResetToken.token_hash == digest)
-        ).first()
+        record_row = sess.scalars(select(PasswordResetToken).where(PasswordResetToken.token_hash == digest)).first()
         now = utcnow()
-        valid_link = (
-            record_row is not None
-            and record_row.used_at is None
-            and record_row.expires_at > now
-        )
+        valid_link = record_row is not None and record_row.used_at is None and record_row.expires_at > now
 
         if not valid_link:
             error = "Liên kết không hợp lệ, đã dùng hoặc đã hết hạn."
         elif request.method == "POST":
+            assert record_row is not None
             new_password = request.form.get("new_password") or ""
             confirm = request.form.get("confirm_password") or ""
             if len(new_password) < 8:
@@ -272,9 +252,7 @@ def reset_password(token: str) -> tuple[str, int] | str:
                         session_row.revoked_at = now
                     sess.flush()
                     success = "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập."
-                    audit_record(
-                        "PASSWORD_RESET", f"user:{user.id}", actor_id=user.id
-                    )
+                    audit_record("PASSWORD_RESET", f"user:{user.id}", actor_id=user.id)
 
     status = 400 if error and request.method == "POST" else 200
     return (

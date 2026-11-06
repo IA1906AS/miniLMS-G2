@@ -11,8 +11,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from flask import Blueprint, abort, flash, redirect, request, url_for
-from flask import send_file
+from flask import Blueprint, abort, flash, redirect, request, send_file, url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from werkzeug.wrappers import Response
@@ -31,7 +30,6 @@ from web.models import (
     User,
 )
 from web.storage import (
-    CODE_EXT,
     DOC_EXT,
     IMAGE_EXT,
     MAX_DOC_BYTES,
@@ -76,9 +74,7 @@ def _course_of_assignment(sess: Session, assignment_id: int) -> Course | None:
     from web.models import Assignment
 
     return sess.scalars(
-        select(Course)
-        .join(Assignment, Assignment.course_id == Course.id)
-        .where(Assignment.id == assignment_id)
+        select(Course).join(Assignment, Assignment.course_id == Course.id).where(Assignment.id == assignment_id)
     ).first()
 
 
@@ -96,9 +92,7 @@ def upload_avatar() -> Response:
         flash("Vui lòng chọn ảnh đại diện.", "error")
         return redirect(request.referrer or url_for("main.dashboard"))
     try:
-        rel = save_upload(
-            file, "avatars", allowed=IMAGE_EXT, max_bytes=MAX_IMAGE_BYTES
-        )
+        rel = save_upload(file, "avatars", allowed=IMAGE_EXT, max_bytes=MAX_IMAGE_BYTES)
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(request.referrer or url_for("main.dashboard"))
@@ -147,12 +141,10 @@ def upload_attachment(lesson_id: int) -> Response:
             abort(403)
 
     file = request.files.get("file")
-    title = (request.form.get("title") or "").strip() or (
-        file.filename if file is not None else ""
-    )
     if file is None or not file.filename:
         flash("Vui lòng chọn tệp tài liệu.", "error")
         return redirect(request.referrer or url_for("main.dashboard"))
+    title = (request.form.get("title") or "").strip() or str(file.filename)
     try:
         rel = save_upload(file, "attachments", allowed=DOC_EXT, max_bytes=MAX_DOC_BYTES)
     except ValueError as exc:
@@ -190,20 +182,14 @@ def delete_attachment(attachment_id: int) -> Response:
         attachment = sess.get(Attachment, attachment_id)
         if attachment is None:
             abort(404)
-        course = (
-            _course_of_lesson(sess, attachment.lesson_id)
-            if attachment.lesson_id
-            else None
-        )
+        course = _course_of_lesson(sess, attachment.lesson_id) if attachment.lesson_id else None
         if course is None or not can_manage_course(actor, course):
             abort(403)
         rel = attachment.stored_name
         sess.delete(attachment)
         sess.flush()
     delete_file(rel)
-    audit_record(
-        "ATTACHMENT_DELETED", f"attachment:{attachment_id}", actor_id=actor["id"]
-    )
+    audit_record("ATTACHMENT_DELETED", f"attachment:{attachment_id}", actor_id=actor["id"])
     flash("Đã xoá tài liệu.", "success")
     return redirect(request.referrer or url_for("main.dashboard"))
 
@@ -220,9 +206,7 @@ def download_attachment(attachment_id: int) -> Response:
         if course is None:
             abort(404)
         staff = can_manage_course(actor, course)
-        enrolled = actor["role"] == ROLE_STUDENT and _is_enrolled(
-            sess, actor["id"], course.id
-        )
+        enrolled = actor["role"] == ROLE_STUDENT and _is_enrolled(sess, actor["id"], course.id)
         if not staff and not enrolled:
             abort(403)
         path = abspath(attachment.stored_name)
@@ -248,9 +232,7 @@ def download_submission(submission_id: int) -> Response:
         course = _course_of_assignment(sess, submission.assignment_id)
         if course is None:
             abort(404)
-        if actor["id"] != submission.student_id and not can_manage_course(
-            actor, course
-        ):
+        if actor["id"] != submission.student_id and not can_manage_course(actor, course):
             abort(403)
         path = abspath(submission.file_path)
         download_name = os.path.basename(submission.file_path)

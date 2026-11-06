@@ -36,9 +36,7 @@ class GradeConflict(GradeError):
     """Version lệch: bản ghi đã bị sửa bởi người khác."""
 
     def __init__(self, current_score: float | None, current_version: int) -> None:
-        super().__init__(
-            "Điểm đã được người khác cập nhật. Vui lòng tải lại trang."
-        )
+        super().__init__("Điểm đã được người khác cập nhật. Vui lòng tải lại trang.")
         self.current_score = current_score
         self.current_version = current_version
 
@@ -53,9 +51,7 @@ class GradeResult:
 def parse_version(raw: Any) -> int:
     """Đọc version client gửi lên; bắt buộc phải có."""
     if raw is None or str(raw).strip() == "":
-        raise GradeValidationError(
-            "Thiếu phiên bản bản ghi (version). Hãy tải lại trang rồi thử lại."
-        )
+        raise GradeValidationError("Thiếu phiên bản bản ghi (version). Hãy tải lại trang rồi thử lại.")
     try:
         version = int(str(raw).strip())
     except (TypeError, ValueError) as exc:
@@ -124,7 +120,7 @@ def update_quiz_grade(
         )
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[attr-defined]
         sess.expire_all()
         current = sess.get(QuizAttempt, attempt_id)
         if current is None:
@@ -200,7 +196,7 @@ def update_submission_grade(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[attr-defined]
         sess.expire_all()
         current = sess.get(Submission, submission_id)
         if current is None:

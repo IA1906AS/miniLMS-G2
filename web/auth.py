@@ -126,11 +126,10 @@ def role_required(*roles: str) -> Callable[[Callable[..., Any]], Callable[..., A
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             user = current_user()
             if user is None:
-                return redirect(
-                    url_for("auth.login", next=request.full_path.rstrip("?"))
-                )
+                return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
             if user["role"] not in roles:
                 from flask import abort
+
                 abort(403)
             return view(*args, **kwargs)
 
@@ -165,7 +164,7 @@ def can_manage_course(actor: dict[str, Any] | None, course: Any) -> bool:
         return False
     if actor["role"] == ROLE_ADMIN:
         return True
-    return actor["role"] == ROLE_INSTRUCTOR and course.instructor_id == actor["id"]
+    return bool(actor["role"] == ROLE_INSTRUCTOR and course.instructor_id == actor["id"])
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +196,8 @@ def authenticate(email: str, password: str) -> dict[str, Any] | None:
 
     store.record_login_success(normalized)
     return actor
+
+
 def attach_session(response: Response, user_id: str) -> Response:
     """Tạo phiên trong DB rồi gắn JWT (có jti) vào cookie httpOnly."""
     import uuid

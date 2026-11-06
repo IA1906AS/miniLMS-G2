@@ -26,16 +26,19 @@ dev = [
 
 # --- Ruff: lint + format ---
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py312"          # khớp Python 3.12
 
 [tool.ruff.lint]
 # E/W: style  F: lỗi import/biến  I: sắp xếp import
 # B: bugbear  UP: nâng cấp syntax  SIM: đơn giản hóa  C4: comprehension  RUF: rule riêng ruff
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF"]
+ignore = ["RUF001"]                # ký tự unicode trong tiếng Việt (en dash, ...)
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401"]              # bỏ qua import chưa dùng trong test
+"tools/*" = ["E402", "E501"]       # script chèn sys.path trước khi import
+"docs/*" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -48,7 +51,7 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 # pre-commit/CI chạy "uv run mypy" không đối số -> chỉ định rõ file cần kiểm tra.
 # Chỉ strict-check source code chính (test nhiều mock/fixture khó chú thích kiểu).
-files = ["app", "web", "webapp.py", "tools"]
+files = ["app", "web", "webapp.py"]
 
 # --- Pytest + coverage ---
 [tool.pytest.ini_options]

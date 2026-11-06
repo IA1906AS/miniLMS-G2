@@ -83,12 +83,8 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(), default=utcnow, server_default=func.now(), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(), default=utcnow, onupdate=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, onupdate=utcnow, server_default=func.now())
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +105,7 @@ class User(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16), default=USER_STATUS_ACTIVE)
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    courses: Mapped[list[Course]] = relationship(
-        back_populates="instructor", foreign_keys="Course.instructor_id"
-    )
+    courses: Mapped[list[Course]] = relationship(back_populates="instructor", foreign_keys="Course.instructor_id")
 
     @property
     def role_label(self) -> str:
@@ -199,28 +193,18 @@ class Course(TimestampMixin, Base):
     instructor_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     slug: Mapped[str | None] = mapped_column(String(280), unique=True, nullable=True)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    category_id: Mapped[int | None] = mapped_column(
-        ForeignKey("categories.id"), nullable=True
-    )
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     price: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(16), default=COURSE_DRAFT)
     cover_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     #: Mã ghi danh công khai (spec mục 3: "ghi danh bằng mã khoá học").
-    enroll_code: Mapped[str | None] = mapped_column(
-        String(20), unique=True, nullable=True, index=True
-    )
+    enroll_code: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
     #: Spec dòng 46: "/leaderboard — Bảng xếp hạng (nếu công khai)".
     leaderboard_public: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    instructor: Mapped[User] = relationship(
-        back_populates="courses", foreign_keys=[instructor_id]
-    )
-    chapters: Mapped[list[Chapter]] = relationship(
-        back_populates="course", cascade="all, delete-orphan"
-    )
-    enrollments: Mapped[list[Enrollment]] = relationship(
-        back_populates="course", cascade="all, delete-orphan"
-    )
+    instructor: Mapped[User] = relationship(back_populates="courses", foreign_keys=[instructor_id])
+    chapters: Mapped[list[Chapter]] = relationship(back_populates="course", cascade="all, delete-orphan")
+    enrollments: Mapped[list[Enrollment]] = relationship(back_populates="course", cascade="all, delete-orphan")
 
     @property
     def is_public(self) -> bool:
@@ -238,9 +222,7 @@ class Chapter(TimestampMixin, Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
 
     course: Mapped[Course] = relationship(back_populates="chapters")
-    lessons: Mapped[list[Lesson]] = relationship(
-        back_populates="chapter", cascade="all, delete-orphan"
-    )
+    lessons: Mapped[list[Lesson]] = relationship(back_populates="chapter", cascade="all, delete-orphan")
 
 
 class Lesson(TimestampMixin, Base):
@@ -258,9 +240,7 @@ class Lesson(TimestampMixin, Base):
     is_free_preview: Mapped[bool] = mapped_column(Boolean, default=False)
 
     chapter: Mapped[Chapter] = relationship(back_populates="lessons")
-    attachments: Mapped[list[Attachment]] = relationship(
-        back_populates="lesson", cascade="all, delete-orphan"
-    )
+    attachments: Mapped[list[Attachment]] = relationship(back_populates="lesson", cascade="all, delete-orphan")
 
 
 class Attachment(Base):
@@ -270,9 +250,7 @@ class Attachment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    lesson_id: Mapped[int | None] = mapped_column(
-        ForeignKey("lessons.id"), nullable=True, index=True
-    )
+    lesson_id: Mapped[int | None] = mapped_column(ForeignKey("lessons.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     stored_name: Mapped[str] = mapped_column(String(200))
     mime: Mapped[str] = mapped_column(String(120))
@@ -289,9 +267,7 @@ class Attachment(Base):
 
 class Enrollment(TimestampMixin, Base):
     __tablename__ = "enrollments"
-    __table_args__ = (
-        UniqueConstraint("course_id", "student_id", name="uq_enrollment"),
-    )
+    __table_args__ = (UniqueConstraint("course_id", "student_id", name="uq_enrollment"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
@@ -304,9 +280,7 @@ class Enrollment(TimestampMixin, Base):
 
 class LessonProgress(Base):
     __tablename__ = "lesson_progress"
-    __table_args__ = (
-        UniqueConstraint("lesson_id", "student_id", name="uq_lesson_progress"),
-    )
+    __table_args__ = (UniqueConstraint("lesson_id", "student_id", name="uq_lesson_progress"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"), index=True)
@@ -323,9 +297,7 @@ class ActivityEvent(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ts: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
-    course_id: Mapped[str | None] = mapped_column(
-        ForeignKey("courses.id"), nullable=True, index=True
-    )
+    course_id: Mapped[str | None] = mapped_column(ForeignKey("courses.id"), nullable=True, index=True)
     verb: Mapped[str] = mapped_column(String(40))
     object_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     object_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -341,9 +313,7 @@ class Question(TimestampMixin, Base):
     __tablename__ = "questions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    course_id: Mapped[str | None] = mapped_column(
-        ForeignKey("courses.id"), nullable=True, index=True
-    )
+    course_id: Mapped[str | None] = mapped_column(ForeignKey("courses.id"), nullable=True, index=True)
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     kind: Mapped[str] = mapped_column(String(16), default="MCQ")
     prompt: Mapped[str] = mapped_column(Text())
@@ -369,9 +339,7 @@ class Quiz(TimestampMixin, Base):
 
 class QuizQuestion(Base):
     __tablename__ = "quiz_questions"
-    __table_args__ = (
-        UniqueConstraint("quiz_id", "question_id", name="uq_quiz_question"),
-    )
+    __table_args__ = (UniqueConstraint("quiz_id", "question_id", name="uq_quiz_question"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id"))
@@ -418,9 +386,7 @@ class Assignment(TimestampMixin, Base):
 
 class Submission(Base):
     __tablename__ = "submissions"
-    __table_args__ = (
-        UniqueConstraint("assignment_id", "student_id", name="uq_submission"),
-    )
+    __table_args__ = (UniqueConstraint("assignment_id", "student_id", name="uq_submission"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id"))
@@ -465,16 +431,10 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True, index=True
-    )
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     #: Người gửi (GV/Admin) và khoá học liên quan — spec mục 6.
-    sender_id: Mapped[str | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True, index=True
-    )
-    course_id: Mapped[str | None] = mapped_column(
-        ForeignKey("courses.id"), nullable=True, index=True
-    )
+    sender_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    course_id: Mapped[str | None] = mapped_column(ForeignKey("courses.id"), nullable=True, index=True)
     kind: Mapped[str] = mapped_column(String(40), default="INFO")
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str | None] = mapped_column(Text(), nullable=True)

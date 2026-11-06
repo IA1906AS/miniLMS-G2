@@ -112,10 +112,13 @@ def test_sua_diem_version_cu_tra_409_va_khong_ghi_de(client, webapp):
     login(client, "an.gv@lms.test")
 
     # Người A lưu thành công -> version 2
-    assert client.post(
-        f"/assignments/1/submissions/{sub_id}/grade",
-        data={"score": "9", "version": "1"},
-    ).status_code == 302
+    assert (
+        client.post(
+            f"/assignments/1/submissions/{sub_id}/grade",
+            data={"score": "9", "version": "1"},
+        ).status_code
+        == 302
+    )
 
     # Người B vẫn cầm version 1 -> phải bị chặn
     res = client.post(
@@ -179,17 +182,20 @@ def test_admin_sua_diem_quiz_khong_con_500(client, webapp):
     assert attempt.version == 2
     with webapp.extensions["lms_db"].session() as sess:
         quiz = sess.get(Quiz, attempt.quiz_id)
-        assert attempt.passed is (8.0 >= quiz.pass_score)
+        assert attempt.passed is (quiz.pass_score <= 8.0)
 
 
 def test_admin_sua_diem_quiz_version_cu_tra_409(client, webapp):
     attempt_id = make_attempt(webapp, score=5.0)
     login(client, "admin@lms.test")
 
-    assert client.post(
-        f"/admin/grades/quiz/{attempt_id}/adjust",
-        data={"score": "8", "version": "1"},
-    ).status_code == 302
+    assert (
+        client.post(
+            f"/admin/grades/quiz/{attempt_id}/adjust",
+            data={"score": "8", "version": "1"},
+        ).status_code
+        == 302
+    )
 
     res = client.post(
         f"/admin/grades/quiz/{attempt_id}/adjust",
@@ -202,12 +208,12 @@ def test_admin_sua_diem_quiz_version_cu_tra_409(client, webapp):
 
 
 def test_bang_diem_hien_thi_version(client, webapp):
-    sub_id = make_submission(webapp, score=7.0)
-    attempt_id = make_attempt(webapp, score=6.0)
+    make_submission(webapp, score=7.0)
+    make_attempt(webapp, score=6.0)
     login(client, "admin@lms.test")
 
     res = client.get("/admin/grades")
     assert res.status_code == 200
     body = res.get_data(as_text=True)
-    assert f'name="version" value="1"' in body
+    assert 'name="version" value="1"' in body
     assert "v1" in body

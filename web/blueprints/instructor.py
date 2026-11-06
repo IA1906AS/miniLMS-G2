@@ -10,6 +10,9 @@ Route: /instructor/courses, /instructor/courses/new,
 
 from __future__ import annotations
 
+import csv
+import io
+import math
 from datetime import datetime
 from typing import Any
 
@@ -25,9 +28,8 @@ from flask import (
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 from werkzeug.wrappers import Response
-import csv
-import io
 
+from app.auth import hash_password, verify_password
 from web.audit import record as audit_record
 from web.auth import current_user, instructor_required
 from web.database import get_db
@@ -37,9 +39,6 @@ from web.models import (
     COURSE_HIDDEN,
     COURSE_PUBLISHED,
     ENROLL_ACTIVE,
-    ENROLL_COMPLETED,
-    ROLE_ADMIN,
-    ROLE_INSTRUCTOR,
     ROLE_STUDENT,
     Assignment,
     Category,
@@ -54,15 +53,14 @@ from web.models import (
     LessonProgress,
     LiveSession,
     Notification,
+    Question,
     Quiz,
     QuizAttempt,
-    Question,
     QuizQuestion,
     Submission,
     User,
     utcnow,
 )
-from app.auth import hash_password, verify_password
 
 bp = Blueprint("instructor", __name__, url_prefix="/instructor")
 
@@ -159,19 +157,12 @@ def courses() -> str:
 
     with get_db().session() as sess:
         taught = sess.scalars(
-            select(Course)
-            .where(Course.instructor_id == actor["id"])
-            .order_by(Course.created_at.desc())
+            select(Course).where(Course.instructor_id == actor["id"]).order_by(Course.created_at.desc())
         ).all()
         rows = []
         for course in taught:
             students = (
-                sess.scalar(
-                    select(func.count())
-                    .select_from(Enrollment)
-                    .where(Enrollment.course_id == course.id)
-                )
-                or 0
+                sess.scalar(select(func.count()).select_from(Enrollment).where(Enrollment.course_id == course.id)) or 0
             )
             lessons = (
                 sess.scalar(
@@ -182,9 +173,7 @@ def courses() -> str:
                 )
                 or 0
             )
-            rows.append(
-                {"course": course, "students": students, "lessons": lessons}
-            )
+            rows.append({"course": course, "students": students, "lessons": lessons})
 
     return render_template("instructor/courses.html", rows=rows)
 
@@ -196,9 +185,7 @@ def course_new() -> str | Response:
     assert actor is not None
 
     with get_db().session() as sess:
-        categories = list(
-            sess.scalars(select(Category).order_by(Category.name)).all()
-        )
+        categories = list(sess.scalars(select(Category).order_by(Category.name)).all())
 
         if request.method == "POST":
             title = (request.form.get("title") or "").strip()
@@ -212,14 +199,12 @@ def course_new() -> str | Response:
                     title=title,
                     instructor_id=actor["id"],
                     slug=None,
-                    description=(request.form.get("description") or "").strip()
-                    or None,
+                    description=(request.form.get("description") or "").strip() or None,
                     category_id=request.form.get("category_id", type=int),
                     price=float(request.form.get("price") or 0),
                     status=(
                         request.form.get("status")
-                        if request.form.get("status")
-                        in {COURSE_DRAFT, COURSE_PUBLISHED, COURSE_HIDDEN}
+                        if request.form.get("status") in {COURSE_DRAFT, COURSE_PUBLISHED, COURSE_HIDDEN}
                         else COURSE_DRAFT
                     ),
                 )
@@ -227,13 +212,9 @@ def course_new() -> str | Response:
                 sess.add(course)
                 sess.flush()
                 flash("Đã tạo khoá học.", "success")
-                return redirect(
-                    url_for("instructor.course_edit", course_id=course.id)
-                )
+                return redirect(url_for("instructor.course_edit", course_id=course.id))
 
-    return render_template(
-        "instructor/course_form.html", course=None, categories=categories
-    )
+    return render_template("instructor/course_form.html", course=None, categories=categories)
 
 
 @bp.route("/courses/<course_id>/edit", methods=["GET", "POST"])
@@ -244,36 +225,35 @@ def course_edit(course_id: str) -> str | Response:
 
     with get_db().session() as sess:
         course = my_course(sess, actor, course_id)
-        categories = list(
-            sess.scalars(select(Category).order_by(Category.name)).all()
-        )
+        categories = list(sess.scalars(select(Category).order_by(Category.name)).all())
 
         if request.method == "POST":
             title = (request.form.get("title") or "").strip()
+            raw_price = (request.form.get("price") or "0").strip()
+            try:
+                # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+                price = float(raw_price)  # đã kiểm tra isfinite và >= 0 bên dưới
+            except ValueError:
+                price = -1.0
+            if not math.isfinite(price) or price < 0:
+                flash("Học phí phải là số không âm.", "error")
+                return redirect(url_for("instructor.course_edit", course_id=course.id))
             if not title:
                 flash("Tên khoá học là bắt buộc.", "error")
             else:
                 course.title = title
-                course.description = (
-                    request.form.get("description") or ""
-                ).strip() or None
+                course.description = (request.form.get("description") or "").strip() or None
                 course.category_id = request.form.get("category_id", type=int)
-                course.price = float(request.form.get("price") or 0)
+                course.price = price
                 status = request.form.get("status")
                 if status in {COURSE_DRAFT, COURSE_PUBLISHED, COURSE_HIDDEN}:
                     course.status = status
-                course.leaderboard_public = (
-                    request.form.get("leaderboard_public") == "1"
-                )
+                course.leaderboard_public = request.form.get("leaderboard_public") == "1"
                 sess.flush()
                 flash("Đã lưu thay đổi.", "success")
-                return redirect(
-                    url_for("instructor.course_edit", course_id=course.id)
-                )
+                return redirect(url_for("instructor.course_edit", course_id=course.id))
 
-    return render_template(
-        "instructor/course_form.html", course=course, categories=categories
-    )
+    return render_template("instructor/course_form.html", course=course, categories=categories)
 
 
 @bp.get("/courses/<course_id>/curriculum")
@@ -285,9 +265,7 @@ def course_curriculum(course_id: str) -> str:
     with get_db().session() as sess:
         course = my_course(sess, actor, course_id)
         chapters = sess.scalars(
-            select(Chapter)
-            .where(Chapter.course_id == course_id)
-            .order_by(Chapter.position, Chapter.id)
+            select(Chapter).where(Chapter.course_id == course_id).order_by(Chapter.position, Chapter.id)
         ).all()
         blocks = []
         for chapter in chapters:
@@ -299,9 +277,7 @@ def course_curriculum(course_id: str) -> str:
             ).all()
             blocks.append({"chapter": chapter, "lessons": lessons})
 
-    return render_template(
-        "instructor/curriculum.html", course=course, blocks=blocks
-    )
+    return render_template("instructor/curriculum.html", course=course, blocks=blocks)
 
 
 @bp.post("/courses/<course_id>/chapters")
@@ -317,16 +293,9 @@ def chapter_create(course_id: str) -> Response:
             flash("Tên chương là bắt buộc.", "error")
         else:
             position = (
-                sess.scalar(
-                    select(func.count())
-                    .select_from(Chapter)
-                    .where(Chapter.course_id == course_id)
-                )
-                or 0
+                sess.scalar(select(func.count()).select_from(Chapter).where(Chapter.course_id == course_id)) or 0
             ) + 1
-            sess.add(
-                Chapter(course_id=course_id, title=title, position=position)
-            )
+            sess.add(Chapter(course_id=course_id, title=title, position=position))
             flash("Đã thêm chương.", "success")
 
     return redirect(url_for("instructor.course_curriculum", course_id=course_id))
@@ -349,12 +318,7 @@ def lesson_create(chapter_id: int) -> Response:
             flash("Tên bài học là bắt buộc.", "error")
         else:
             position = (
-                sess.scalar(
-                    select(func.count())
-                    .select_from(Lesson)
-                    .where(Lesson.chapter_id == chapter_id)
-                )
-                or 0
+                sess.scalar(select(func.count()).select_from(Lesson).where(Lesson.chapter_id == chapter_id)) or 0
             ) + 1
             sess.add(
                 Lesson(
@@ -362,8 +326,7 @@ def lesson_create(chapter_id: int) -> Response:
                     title=title,
                     kind=request.form.get("kind") or "text",
                     content=(request.form.get("content") or "").strip() or None,
-                    media_url=(request.form.get("media_url") or "").strip()
-                    or None,
+                    media_url=(request.form.get("media_url") or "").strip() or None,
                     duration_min=request.form.get("duration_min", type=int) or 0,
                     position=position,
                     is_free_preview=request.form.get("is_free_preview") == "1",
@@ -371,9 +334,7 @@ def lesson_create(chapter_id: int) -> Response:
             )
             flash("Đã thêm bài học.", "success")
             course_id = chapter.course_id
-            return redirect(
-                url_for("instructor.course_curriculum", course_id=course_id)
-            )
+            return redirect(url_for("instructor.course_curriculum", course_id=course_id))
 
         course_id = chapter.course_id
 
@@ -411,9 +372,7 @@ def course_students_view(course_id: str) -> str:
         course = my_course(sess, actor, course_id)
         rows = course_students(sess, course_id)
 
-    return render_template(
-        "instructor/students.html", course=course, rows=rows
-    )
+    return render_template("instructor/students.html", course=course, rows=rows)
 
 
 @bp.get("/courses/<course_id>/reports")
@@ -427,14 +386,10 @@ def course_reports(course_id: str) -> str:
         rows = course_students(sess, course_id)
         total = len(rows)
         completed = sum(1 for row in rows if row["total"] and row["percent"] == 100)
-        avg_percent = (
-            round(sum(row["percent"] for row in rows) / total) if total else 0
-        )
+        avg_percent = round(sum(row["percent"] for row in rows) / total) if total else 0
 
         quiz_scores = []
-        for quiz in sess.scalars(
-            select(Quiz).where(Quiz.course_id == course_id)
-        ).all():
+        for quiz in sess.scalars(select(Quiz).where(Quiz.course_id == course_id)).all():
             attempts = sess.scalars(
                 select(QuizAttempt).where(
                     QuizAttempt.quiz_id == quiz.id,
@@ -446,13 +401,8 @@ def course_reports(course_id: str) -> str:
                     {
                         "quiz": quiz,
                         "attempts": len(attempts),
-                        "average": round(
-                            sum(a.score for a in attempts) / len(attempts), 2
-                        ),
-                        "pass_rate": round(
-                            sum(1 for a in attempts if a.passed) * 100
-                            / len(attempts)
-                        ),
+                        "average": round(sum(a.score for a in attempts) / len(attempts), 2),
+                        "pass_rate": round(sum(1 for a in attempts if a.passed) * 100 / len(attempts)),
                     }
                 )
 
@@ -479,24 +429,12 @@ def quizzes() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        course_ids = list(
-            sess.scalars(
-                select(Course.id).where(Course.instructor_id == actor["id"])
-            ).all()
-        )
+        course_ids = list(sess.scalars(select(Course.id).where(Course.instructor_id == actor["id"])).all())
         rows = []
         if course_ids:
-            for quiz in sess.scalars(
-                select(Quiz)
-                .where(Quiz.course_id.in_(course_ids))
-                .order_by(Quiz.id)
-            ).all():
+            for quiz in sess.scalars(select(Quiz).where(Quiz.course_id.in_(course_ids)).order_by(Quiz.id)).all():
                 count = (
-                    sess.scalar(
-                        select(func.count())
-                        .select_from(QuizQuestion)
-                        .where(QuizQuestion.quiz_id == quiz.id)
-                    )
+                    sess.scalar(select(func.count()).select_from(QuizQuestion).where(QuizQuestion.quiz_id == quiz.id))
                     or 0
                 )
                 attempts = (
@@ -539,10 +477,8 @@ def quiz_new(course_id: str) -> str | Response:
                 quiz = Quiz(
                     course_id=course_id,
                     title=title,
-                    description=(request.form.get("description") or "").strip()
-                    or None,
-                    time_limit_min=request.form.get("time_limit_min", type=int)
-                    or 0,
+                    description=(request.form.get("description") or "").strip() or None,
+                    time_limit_min=request.form.get("time_limit_min", type=int) or 0,
                     pass_score=float(request.form.get("pass_score") or 5),
                     max_attempts=request.form.get("max_attempts", type=int) or 0,
                     show_answers=request.form.get("show_answers") == "1",
@@ -551,13 +487,9 @@ def quiz_new(course_id: str) -> str | Response:
                 sess.add(quiz)
                 sess.flush()
                 flash("Đã tạo bài kiểm tra.", "success")
-                return redirect(
-                    url_for("instructor.quiz_questions", quiz_id=quiz.id)
-                )
+                return redirect(url_for("instructor.quiz_questions", quiz_id=quiz.id))
 
-    return render_template(
-        "instructor/quiz_form.html", course=course, quiz=None
-    )
+    return render_template("instructor/quiz_form.html", course=course, quiz=None)
 
 
 @bp.route("/quizzes/<int:quiz_id>/questions", methods=["GET", "POST"])
@@ -572,15 +504,11 @@ def quiz_questions(quiz_id: int) -> str | Response:
 
         if request.method == "POST":
             prompt = (request.form.get("prompt") or "").strip()
-            options = [
-                (request.form.get(f"option_{i}") or "").strip() for i in range(4)
-            ]
+            options = [(request.form.get(f"option_{i}") or "").strip() for i in range(4)]
             options = [opt for opt in options if opt]
             correct = request.form.get("correct", type=int) or 0
             if not prompt or len(options) < 2:
-                flash(
-                    "Cần nội dung câu hỏi và ít nhất 2 lựa chọn.", "error"
-                )
+                flash("Cần nội dung câu hỏi và ít nhất 2 lựa chọn.", "error")
             else:
                 question = Question(
                     course_id=quiz.course_id,
@@ -594,11 +522,7 @@ def quiz_questions(quiz_id: int) -> str | Response:
                 sess.add(question)
                 sess.flush()
                 position = (
-                    sess.scalar(
-                        select(func.count())
-                        .select_from(QuizQuestion)
-                        .where(QuizQuestion.quiz_id == quiz_id)
-                    )
+                    sess.scalar(select(func.count()).select_from(QuizQuestion).where(QuizQuestion.quiz_id == quiz_id))
                     or 0
                 ) + 1
                 sess.add(
@@ -609,9 +533,7 @@ def quiz_questions(quiz_id: int) -> str | Response:
                     )
                 )
                 flash("Đã thêm câu hỏi.", "success")
-                return redirect(
-                    url_for("instructor.quiz_questions", quiz_id=quiz_id)
-                )
+                return redirect(url_for("instructor.quiz_questions", quiz_id=quiz_id))
 
         questions = sess.scalars(
             select(Question)
@@ -638,9 +560,7 @@ def question_delete(question_id: int) -> Response:
         question = sess.get(Question, question_id)
         if question is None:
             abort(404)
-        links = sess.scalars(
-            select(QuizQuestion).where(QuizQuestion.question_id == question_id)
-        ).all()
+        links = sess.scalars(select(QuizQuestion).where(QuizQuestion.question_id == question_id)).all()
         quiz_ids = [link.quiz_id for link in links]
         for link in links:
             sess.delete(link)
@@ -666,23 +586,15 @@ def assignments() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        course_ids = list(
-            sess.scalars(
-                select(Course.id).where(Course.instructor_id == actor["id"])
-            ).all()
-        )
+        course_ids = list(sess.scalars(select(Course.id).where(Course.instructor_id == actor["id"])).all())
         rows = []
         if course_ids:
             for assignment in sess.scalars(
-                select(Assignment)
-                .where(Assignment.course_id.in_(course_ids))
-                .order_by(Assignment.id)
+                select(Assignment).where(Assignment.course_id.in_(course_ids)).order_by(Assignment.id)
             ).all():
                 submitted = (
                     sess.scalar(
-                        select(func.count())
-                        .select_from(Submission)
-                        .where(Submission.assignment_id == assignment.id)
+                        select(func.count()).select_from(Submission).where(Submission.assignment_id == assignment.id)
                     )
                     or 0
                 )
@@ -713,8 +625,7 @@ def assignment_create(course_id: str) -> Response:
                 Assignment(
                     course_id=course_id,
                     title=title,
-                    description=(request.form.get("description") or "").strip()
-                    or None,
+                    description=(request.form.get("description") or "").strip() or None,
                     due_at=parse_dt(request.form.get("due_at", "")),
                     max_score=float(request.form.get("max_score") or 10),
                 )
@@ -736,16 +647,12 @@ def grades() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
         rows = []
         for course in taught:
             students = course_students(sess, course.id)
             quiz_data = []
-            for quiz in sess.scalars(
-                select(Quiz).where(Quiz.course_id == course.id)
-            ).all():
+            for quiz in sess.scalars(select(Quiz).where(Quiz.course_id == course.id)).all():
                 attempts = sess.scalars(
                     select(QuizAttempt).where(
                         QuizAttempt.quiz_id == quiz.id,
@@ -756,14 +663,10 @@ def grades() -> str:
                     quiz_data.append(
                         {
                             "quiz": quiz,
-                            "average": round(
-                                sum(a.score for a in attempts) / len(attempts), 2
-                            ),
+                            "average": round(sum(a.score for a in attempts) / len(attempts), 2),
                         }
                     )
-            rows.append(
-                {"course": course, "students": students, "quizzes": quiz_data}
-            )
+            rows.append({"course": course, "students": students, "quizzes": quiz_data})
 
     return render_template("instructor/grades.html", rows=rows)
 
@@ -780,9 +683,7 @@ def certificates() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
         rows = []
         for course in taught:
             issued = sess.execute(
@@ -795,9 +696,7 @@ def certificates() -> str:
             rows.append(
                 {
                     "course": course,
-                    "issued": [
-                        {"certificate": c, "student": u} for c, u in issued
-                    ],
+                    "issued": [{"certificate": c, "student": u} for c, u in issued],
                     "students": students,
                 }
             )
@@ -869,9 +768,7 @@ def forum() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
         rows = []
         for course in taught:
             topics = sess.execute(
@@ -885,10 +782,7 @@ def forum() -> str:
             rows.append(
                 {
                     "course": course,
-                    "topics": [
-                        {"topic": t, "author": email, "replies": count}
-                        for t, email, count in topics
-                    ],
+                    "topics": [{"topic": t, "author": email, "replies": count} for t, email, count in topics],
                 }
             )
 
@@ -912,9 +806,7 @@ def forum_moderate(topic_id: int) -> Response:
         elif action == "lock":
             topic.locked = not topic.locked
         elif action == "delete":
-            for post in sess.scalars(
-                select(ForumPost).where(ForumPost.topic_id == topic_id)
-            ).all():
+            for post in sess.scalars(select(ForumPost).where(ForumPost.topic_id == topic_id)).all():
                 sess.delete(post)
             sess.flush()
             sess.delete(topic)
@@ -938,15 +830,11 @@ def live() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
         rows = []
         for course in taught:
             sessions = sess.scalars(
-                select(LiveSession)
-                .where(LiveSession.course_id == course.id)
-                .order_by(LiveSession.start_at)
+                select(LiveSession).where(LiveSession.course_id == course.id).order_by(LiveSession.start_at)
             ).all()
             rows.append({"course": course, "sessions": sessions})
 
@@ -994,6 +882,7 @@ def live_delete(session_id: int) -> Response:
         sess.delete(row)
         flash("Đã xoá buổi học.", "success")
 
+    return redirect(url_for("instructor.live"))
 
 
 # ---------------------------------------------------------------------------
@@ -1009,9 +898,7 @@ def messages_index() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
 
         conversations = []
         for course in taught:
@@ -1021,32 +908,45 @@ def messages_index() -> str:
                 .where(Enrollment.course_id == course.id)
             ).all()
 
-            for enrollment, student in students:
+            for _enrollment, student in students:
                 last_msg = sess.scalars(
                     select(DirectMessage)
                     .where(
                         or_(
-                            and_(DirectMessage.sender_id == actor["id"], DirectMessage.recipient_id == student.id),
-                            and_(DirectMessage.sender_id == student.id, DirectMessage.recipient_id == actor["id"]),
+                            and_(
+                                DirectMessage.sender_id == actor["id"],
+                                DirectMessage.recipient_id == student.id,
+                            ),
+                            and_(
+                                DirectMessage.sender_id == student.id,
+                                DirectMessage.recipient_id == actor["id"],
+                            ),
                         )
                     )
                     .order_by(DirectMessage.created_at.desc())
                 ).first()
 
-                unread = sess.scalar(
-                    select(func.count()).select_from(DirectMessage).where(
-                        DirectMessage.recipient_id == actor["id"],
-                        DirectMessage.sender_id == student.id,
-                        DirectMessage.read_at.is_(None),
+                unread = (
+                    sess.scalar(
+                        select(func.count())
+                        .select_from(DirectMessage)
+                        .where(
+                            DirectMessage.recipient_id == actor["id"],
+                            DirectMessage.sender_id == student.id,
+                            DirectMessage.read_at.is_(None),
+                        )
                     )
-                ) or 0
+                    or 0
+                )
 
-                conversations.append({
-                    "course": course,
-                    "student": student,
-                    "last_message": last_msg,
-                    "unread": unread,
-                })
+                conversations.append(
+                    {
+                        "course": course,
+                        "student": student,
+                        "last_message": last_msg,
+                        "unread": unread,
+                    }
+                )
 
     return render_template("instructor/messages_index.html", conversations=conversations)
 
@@ -1067,9 +967,7 @@ def messages_conversation(student_id: str) -> str:
         common = sess.scalars(
             select(Enrollment).where(
                 Enrollment.student_id == student_id,
-                Enrollment.course_id.in_(
-                    select(Course.id).where(Course.instructor_id == actor["id"])
-                )
+                Enrollment.course_id.in_(select(Course.id).where(Course.instructor_id == actor["id"])),
             )
         ).first()
         if not common:
@@ -1091,8 +989,14 @@ def messages_conversation(student_id: str) -> str:
             .join(User, DirectMessage.sender_id == User.id)
             .where(
                 or_(
-                    and_(DirectMessage.sender_id == actor["id"], DirectMessage.recipient_id == student_id),
-                    and_(DirectMessage.sender_id == student_id, DirectMessage.recipient_id == actor["id"]),
+                    and_(
+                        DirectMessage.sender_id == actor["id"],
+                        DirectMessage.recipient_id == student_id,
+                    ),
+                    and_(
+                        DirectMessage.sender_id == student_id,
+                        DirectMessage.recipient_id == actor["id"],
+                    ),
                 )
             )
             .order_by(DirectMessage.created_at)
@@ -1116,9 +1020,7 @@ def messages_send(student_id: str) -> Response:
         common = sess.scalars(
             select(Enrollment).where(
                 Enrollment.student_id == student_id,
-                Enrollment.course_id.in_(
-                    select(Course.id).where(Course.instructor_id == actor["id"])
-                )
+                Enrollment.course_id.in_(select(Course.id).where(Course.instructor_id == actor["id"])),
             )
         ).first()
         if not common:
@@ -1244,28 +1146,45 @@ def course_reports_export(course_id: str) -> Response:
         ).all()
 
         # Get lesson progress for each student
-        total_lessons = sess.scalar(
-            select(func.count())
-            .select_from(Lesson)
-            .join(Chapter, Lesson.chapter_id == Chapter.id)
-            .where(Chapter.course_id == course_id)
-        ) or 0
+        total_lessons = (
+            sess.scalar(
+                select(func.count())
+                .select_from(Lesson)
+                .join(Chapter, Lesson.chapter_id == Chapter.id)
+                .where(Chapter.course_id == course_id)
+            )
+            or 0
+        )
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Học viên", "Email", "Tiến độ (%)", "Bài hoàn thành", "Tổng bài", "Trạng thái", "Điểm TB Quiz", "Chứng chỉ"])
+        writer.writerow(
+            [
+                "Học viên",
+                "Email",
+                "Tiến độ (%)",
+                "Bài hoàn thành",
+                "Tổng bài",
+                "Trạng thái",
+                "Điểm TB Quiz",
+                "Chứng chỉ",
+            ]
+        )
 
         for enrollment, student in enrollments:
-            done = sess.scalar(
-                select(func.count())
-                .select_from(LessonProgress)
-                .join(Lesson, LessonProgress.lesson_id == Lesson.id)
-                .join(Chapter, Lesson.chapter_id == Chapter.id)
-                .where(
-                    Chapter.course_id == course_id,
-                    LessonProgress.student_id == student.id,
+            done = (
+                sess.scalar(
+                    select(func.count())
+                    .select_from(LessonProgress)
+                    .join(Lesson, LessonProgress.lesson_id == Lesson.id)
+                    .join(Chapter, Lesson.chapter_id == Chapter.id)
+                    .where(
+                        Chapter.course_id == course_id,
+                        LessonProgress.student_id == student.id,
+                    )
                 )
-            ) or 0
+                or 0
+            )
 
             percent = round(done * 100 / total_lessons) if total_lessons else 0
 
@@ -1287,16 +1206,18 @@ def course_reports_export(course_id: str) -> Response:
                 )
             )
 
-            writer.writerow([
-                student.display_name,
-                student.email,
-                f"{percent}%",
-                done,
-                total_lessons,
-                enrollment.status,
-                f"{quiz_avg:.1f}" if quiz_avg else "—",
-                "Có" if cert else "Không",
-            ])
+            writer.writerow(
+                [
+                    student.display_name,
+                    student.email,
+                    f"{percent}%",
+                    done,
+                    total_lessons,
+                    enrollment.status,
+                    f"{quiz_avg:.1f}" if quiz_avg else "—",
+                    "Có" if cert else "Không",
+                ]
+            )
 
         output.seek(0)
         return Response(
@@ -1314,13 +1235,22 @@ def reports_export() -> Response:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"])
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"])).all()
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Khóa học", "Học viên", "Email", "Tiến độ (%)", "Bài hoàn thành", "Tổng bài", "Trạng thái", "Điểm TB Quiz"])
+        writer.writerow(
+            [
+                "Khóa học",
+                "Học viên",
+                "Email",
+                "Tiến độ (%)",
+                "Bài hoàn thành",
+                "Tổng bài",
+                "Trạng thái",
+                "Điểm TB Quiz",
+            ]
+        )
 
         for course in taught:
             enrollments = sess.execute(
@@ -1329,24 +1259,30 @@ def reports_export() -> Response:
                 .where(Enrollment.course_id == course.id)
             ).all()
 
-            total_lessons = sess.scalar(
-                select(func.count())
-                .select_from(Lesson)
-                .join(Chapter, Lesson.chapter_id == Chapter.id)
-                .where(Chapter.course_id == course.id)
-            ) or 0
+            total_lessons = (
+                sess.scalar(
+                    select(func.count())
+                    .select_from(Lesson)
+                    .join(Chapter, Lesson.chapter_id == Chapter.id)
+                    .where(Chapter.course_id == course.id)
+                )
+                or 0
+            )
 
             for enrollment, student in enrollments:
-                done = sess.scalar(
-                    select(func.count())
-                    .select_from(LessonProgress)
-                    .join(Lesson, LessonProgress.lesson_id == Lesson.id)
-                    .join(Chapter, Lesson.chapter_id == Chapter.id)
-                    .where(
-                        Chapter.course_id == course.id,
-                        LessonProgress.student_id == student.id,
+                done = (
+                    sess.scalar(
+                        select(func.count())
+                        .select_from(LessonProgress)
+                        .join(Lesson, LessonProgress.lesson_id == Lesson.id)
+                        .join(Chapter, Lesson.chapter_id == Chapter.id)
+                        .where(
+                            Chapter.course_id == course.id,
+                            LessonProgress.student_id == student.id,
+                        )
                     )
-                ) or 0
+                    or 0
+                )
 
                 percent = round(done * 100 / total_lessons) if total_lessons else 0
 
@@ -1360,16 +1296,18 @@ def reports_export() -> Response:
                     )
                 )
 
-                writer.writerow([
-                    course.title,
-                    student.display_name,
-                    student.email,
-                    f"{percent}%",
-                    done,
-                    total_lessons,
-                    enrollment.status,
-                    f"{quiz_avg:.1f}" if quiz_avg else "—",
-                ])
+                writer.writerow(
+                    [
+                        course.title,
+                        student.display_name,
+                        student.email,
+                        f"{percent}%",
+                        done,
+                        total_lessons,
+                        enrollment.status,
+                        f"{quiz_avg:.1f}" if quiz_avg else "—",
+                    ]
+                )
 
         output.seek(0)
         return Response(
@@ -1391,11 +1329,7 @@ def notifications() -> str:
     assert actor is not None
 
     with get_db().session() as sess:
-        taught = sess.scalars(
-            select(Course).where(Course.instructor_id == actor["id"]).order_by(
-                Course.title
-            )
-        ).all()
+        taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"]).order_by(Course.title)).all()
         recent = sess.execute(
             select(Notification, User)
             .join(User, Notification.user_id == User.id)
@@ -1404,9 +1338,7 @@ def notifications() -> str:
             .limit(50)
         ).all()
 
-    return render_template(
-        "instructor/notifications.html", taught=taught, recent=recent
-    )
+    return render_template("instructor/notifications.html", taught=taught, recent=recent)
 
 
 @bp.post("/notifications")
@@ -1424,14 +1356,18 @@ def notification_send() -> Response:
 
     with get_db().session() as sess:
         course = my_course(sess, actor, course_id)
-        recipients = sess.execute(
-            select(User)
-            .join(Enrollment, Enrollment.student_id == User.id)
-            .where(
-                Enrollment.course_id == course.id,
-                Enrollment.status == ENROLL_ACTIVE,
+        recipients = (
+            sess.execute(
+                select(User)
+                .join(Enrollment, Enrollment.student_id == User.id)
+                .where(
+                    Enrollment.course_id == course.id,
+                    Enrollment.status == ENROLL_ACTIVE,
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if not recipients:
             flash("Khoá học chưa có sinh viên đang học.", "error")
             return redirect(url_for("instructor.notifications"))
@@ -1478,9 +1414,7 @@ def student_add(course_id: str) -> Response:
 
     with get_db().session() as sess:
         course = my_course(sess, actor, course_id)
-        student = sess.scalars(
-            select(User).where(func.lower(User.email) == email)
-        ).first()
+        student = sess.scalars(select(User).where(func.lower(User.email) == email)).first()
         if student is None:
             flash("Không tìm thấy tài khoản với email này.", "error")
         elif student.role != ROLE_STUDENT:
@@ -1540,4 +1474,3 @@ def student_remove(course_id: str, student_id: str) -> Response:
             flash("Đã xoá sinh viên khỏi lớp.", "success")
 
     return redirect(url_for("instructor.students", course_id=course_id))
-

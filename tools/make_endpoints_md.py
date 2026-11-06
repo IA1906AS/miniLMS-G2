@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from make_spec_docx import EP_LABEL, ep_roles  # noqa: E402
+from make_spec_docx import EP_LABEL, ep_roles
 
 
 def main() -> int:
@@ -27,15 +27,19 @@ def main() -> int:
     lines = [
         "# Danh sách endpoint — miniLMS",
         "",
-        f"Tổng cộng **{len(routes)}** route (sinh tự động từ `url_map`, "
-        "khớp Phụ lục A của file đặc tả).",
+        f"Tổng cộng **{len(routes)}** route (sinh tự động từ `url_map`, khớp Phụ lục A của file đặc tả).",
         "",
     ]
     for bp, title in groups.items():
         rows = [r for r in routes if r["blueprint"] == bp]
         if not rows:
             continue
-        lines += [f"## {title} ({len(rows)})", "", "| Method | Endpoint | Chức năng | Vai trò |", "|---|---|---|---|"]
+        lines += [
+            f"## {title} ({len(rows)})",
+            "",
+            "| Method | Endpoint | Chức năng | Vai trò |",
+            "|---|---|---|---|",
+        ]
         for row in rows:
             ep = row["endpoint"]
             methods = ", ".join(row["methods"])

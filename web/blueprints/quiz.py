@@ -6,7 +6,7 @@ GV:  /instructor/quizzes, /instructor/assignments (xem instructor.py)
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from flask import (
@@ -22,8 +22,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from werkzeug.wrappers import Response
 
-from web.auth import current_user, login_required, role_required
 from web.audit import record as audit_record
+from web.auth import current_user, login_required, role_required
 from web.database import get_db
 from web.grade_service import (
     GradeConflict,
@@ -31,16 +31,13 @@ from web.grade_service import (
     GradeValidationError,
     update_submission_grade,
 )
-from web.storage import CODE_EXT, MAX_DOC_BYTES, delete_file, save_upload
 from web.models import (
     ROLE_ADMIN,
     ROLE_INSTRUCTOR,
     ROLE_STUDENT,
     Assignment,
-    Chapter,
     Course,
     Enrollment,
-    Lesson,
     Question,
     Quiz,
     QuizAnswer,
@@ -50,6 +47,7 @@ from web.models import (
     User,
     utcnow,
 )
+from web.storage import CODE_EXT, MAX_DOC_BYTES, delete_file, save_upload
 
 bp = Blueprint("quiz", __name__)
 
@@ -98,9 +96,7 @@ def grade_attempt(
         correct_index = answer.get("index")
         options = list(question.options or [])
         correct_text = (
-            options[correct_index]
-            if isinstance(correct_index, int) and 0 <= correct_index < len(options)
-            else ""
+            options[correct_index] if isinstance(correct_index, int) and 0 <= correct_index < len(options) else ""
         )
         chosen = responses.get(question.id, "")
         is_correct = bool(correct_text) and chosen.strip() == correct_text.strip()
@@ -118,7 +114,7 @@ def grade_attempt(
 
 @bp.get("/quizzes/<int:quiz_id>")
 @login_required
-def intro(quiz_id: int) -> str:
+def intro(quiz_id: int) -> str | Response:
     actor = current_user()
     assert actor is not None
 
@@ -130,9 +126,7 @@ def intro(quiz_id: int) -> str:
         questions = quiz_questions(sess, quiz_id)
 
         staff = can_manage(sess, actor, quiz.course_id)
-        enrolled = actor["role"] == ROLE_STUDENT and is_enrolled(
-            sess, actor["id"], quiz.course_id
-        )
+        enrolled = actor["role"] == ROLE_STUDENT and is_enrolled(sess, actor["id"], quiz.course_id)
         if not staff and not enrolled:
             abort(403)
 
@@ -151,9 +145,7 @@ def intro(quiz_id: int) -> str:
                 ).all()
             )
             used = len(attempts)
-            in_progress = next(
-                (a for a in attempts if a.status == "IN_PROGRESS"), None
-            )
+            in_progress = next((a for a in attempts if a.status == "IN_PROGRESS"), None)
 
         over_limit = bool(quiz.max_attempts) and used >= quiz.max_attempts
 
@@ -217,7 +209,7 @@ def start(quiz_id: int) -> Response:
 
 @bp.get("/quizzes/<int:quiz_id>/attempts/<int:attempt_id>")
 @role_required(ROLE_STUDENT)
-def take(quiz_id: int, attempt_id: int) -> str:
+def take(quiz_id: int, attempt_id: int) -> str | Response:
     actor = current_user()
     assert actor is not None
 
@@ -229,11 +221,7 @@ def take(quiz_id: int, attempt_id: int) -> str:
         if attempt.student_id != actor["id"] or attempt.quiz_id != quiz_id:
             abort(403)
         if attempt.status != "IN_PROGRESS":
-            return redirect(
-                url_for(
-                    "quiz.result", quiz_id=quiz_id, attempt_id=attempt_id
-                )
-            )
+            return redirect(url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id))
 
         # Spec mục 5: làm bài trong thời lượng quy định.
         deadline = None
@@ -248,9 +236,7 @@ def take(quiz_id: int, attempt_id: int) -> str:
                 attempt.passed = False
                 sess.flush()
                 flash("Đã hết thời gian làm bài.", "error")
-                return redirect(
-                    url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id)
-                )
+                return redirect(url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id))
             remaining_seconds = int((deadline - now).total_seconds())
 
         questions = quiz_questions(sess, quiz_id)
@@ -279,9 +265,7 @@ def submit(quiz_id: int, attempt_id: int) -> Response:
             abort(403)
         if attempt.status != "IN_PROGRESS":
             flash("Bài này đã được nộp.", "error")
-            return redirect(
-                url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id)
-            )
+            return redirect(url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id))
 
         # Cưỡng chế thời lượng: quá giờ thì không chấm, đánh dấu hết hạn.
         if quiz.time_limit_min and attempt.started_at:
@@ -294,14 +278,10 @@ def submit(quiz_id: int, attempt_id: int) -> Response:
                 attempt.passed = False
                 sess.flush()
                 flash("Đã quá thời gian làm bài, bài không được chấp nhận.", "error")
-                return redirect(
-                    url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id)
-                )
+                return redirect(url_for("quiz.result", quiz_id=quiz_id, attempt_id=attempt_id))
 
         questions = quiz_questions(sess, quiz_id)
-        responses = {
-            q.id: (request.form.get(f"q_{q.id}") or "") for q in questions
-        }
+        responses = {q.id: (request.form.get(f"q_{q.id}") or "") for q in questions}
         score, detail = grade_attempt(sess, quiz, questions, responses)
 
         for question, is_correct, _ in detail:
@@ -327,7 +307,7 @@ def submit(quiz_id: int, attempt_id: int) -> Response:
 
 @bp.get("/quizzes/<int:quiz_id>/attempts/<int:attempt_id>/result")
 @login_required
-def result(quiz_id: int, attempt_id: int) -> str:
+def result(quiz_id: int, attempt_id: int) -> str | Response:
     actor = current_user()
     assert actor is not None
 
@@ -340,31 +320,20 @@ def result(quiz_id: int, attempt_id: int) -> str:
         if not staff and attempt.student_id != actor["id"]:
             abort(403)
         if attempt.status != "SUBMITTED":
-            return redirect(
-                url_for("quiz.take", quiz_id=quiz_id, attempt_id=attempt_id)
-            )
+            return redirect(url_for("quiz.take", quiz_id=quiz_id, attempt_id=attempt_id))
 
         questions = quiz_questions(sess, quiz_id)
         answers = {
-            a.question_id: a
-            for a in sess.scalars(
-                select(QuizAnswer).where(QuizAnswer.attempt_id == attempt_id)
-            ).all()
+            a.question_id: a for a in sess.scalars(select(QuizAnswer).where(QuizAnswer.attempt_id == attempt_id)).all()
         }
         detail = []
         for question in questions:
             answer = dict(question.answer or {})
             options = list(question.options or [])
             idx = answer.get("index")
-            correct_text = (
-                options[idx]
-                if isinstance(idx, int) and 0 <= idx < len(options)
-                else ""
-            )
+            correct_text = options[idx] if isinstance(idx, int) and 0 <= idx < len(options) else ""
             given = answers.get(question.id)
-            chosen = (
-                dict(given.response or {}).get("value", "") if given else ""
-            )
+            chosen = dict(given.response or {}).get("value", "") if given else ""
             detail.append(
                 {
                     "question": question,
@@ -405,17 +374,13 @@ def assignment_detail(assignment_id: int) -> str:
     return render_template("quiz/assignment_detail.html", **context)
 
 
-def _assignment_context(
-    sess: Session, actor: dict[str, Any], assignment_id: int
-) -> dict[str, Any]:
+def _assignment_context(sess: Session, actor: dict[str, Any], assignment_id: int) -> dict[str, Any]:
     assignment = sess.get(Assignment, assignment_id)
     if assignment is None:
         abort(404)
     course = sess.get(Course, assignment.course_id)
     staff = can_manage(sess, actor, assignment.course_id)
-    enrolled = actor["role"] == ROLE_STUDENT and is_enrolled(
-        sess, actor["id"], assignment.course_id
-    )
+    enrolled = actor["role"] == ROLE_STUDENT and is_enrolled(sess, actor["id"], assignment.course_id)
     if not staff and not enrolled:
         abort(403)
 
@@ -429,9 +394,7 @@ def _assignment_context(
         ).first()
     else:
         submission = sess.scalars(
-            select(Submission)
-            .where(Submission.assignment_id == assignment_id)
-            .order_by(Submission.submitted_at.desc())
+            select(Submission).where(Submission.assignment_id == assignment_id).order_by(Submission.submitted_at.desc())
         ).first()
 
     submissions = []
@@ -470,18 +433,14 @@ def assignment_submit(assignment_id: int) -> Response:
         # Spec mục 4: chỉ nhận bài trong thời hạn quy định.
         if assignment.due_at is not None and utcnow() > assignment.due_at:
             flash("Đã quá hạn nộp bài, không thể nộp.", "error")
-            return redirect(
-                url_for("quiz.assignment_detail", assignment_id=assignment_id)
-            )
+            return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
 
         text = (request.form.get("text") or "").strip()
         file = request.files.get("file")
-        has_file = file is not None and bool(file.filename)
+        has_file = file is not None and file.filename is not None and file.filename != ""
         if not text and not has_file:
             flash("Cần nhập nội dung hoặc đính kèm tệp bài làm.", "error")
-            return redirect(
-                url_for("quiz.assignment_detail", assignment_id=assignment_id)
-            )
+            return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
 
         submission = sess.scalars(
             select(Submission).where(
@@ -502,9 +461,7 @@ def assignment_submit(assignment_id: int) -> Response:
                 )
             except ValueError as exc:
                 flash(str(exc), "error")
-                return redirect(
-                    url_for("quiz.assignment_detail", assignment_id=assignment_id)
-                )
+                return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
 
         if submission is None:
             sess.add(
@@ -538,7 +495,7 @@ def assignment_submit(assignment_id: int) -> Response:
 
 @bp.post("/assignments/<int:assignment_id>/submissions/<int:submission_id>/grade")
 @role_required(ROLE_ADMIN, ROLE_INSTRUCTOR)
-def assignment_grade(assignment_id: int, submission_id: int) -> Response:
+def assignment_grade(assignment_id: int, submission_id: int) -> Response | tuple[str, int]:
     actor = current_user()
     assert actor is not None
 
@@ -561,9 +518,7 @@ def assignment_grade(assignment_id: int, submission_id: int) -> Response:
             )
         except GradeValidationError as exc:
             flash(str(exc), "error")
-            return redirect(
-                url_for("quiz.assignment_detail", assignment_id=assignment_id)
-            )
+            return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
         except GradeNotFound:
             abort(404)
         except GradeConflict as exc:

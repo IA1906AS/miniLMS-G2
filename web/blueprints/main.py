@@ -9,9 +9,9 @@ from __future__ import annotations
 from typing import Any
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
-from werkzeug.wrappers import Response
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
+from werkzeug.wrappers import Response
 
 from web.auth import current_user, login_required
 from web.database import get_db
@@ -70,12 +70,7 @@ def course_card_data(sess: Session, courses: list[Course]) -> list[dict[str, Any
     for course in courses:
         instructor = sess.get(User, course.instructor_id)
         students = (
-            sess.scalar(
-                select(func.count())
-                .select_from(Enrollment)
-                .where(Enrollment.course_id == course.id)
-            )
-            or 0
+            sess.scalar(select(func.count()).select_from(Enrollment).where(Enrollment.course_id == course.id)) or 0
         )
         lessons = (
             sess.scalar(
@@ -99,16 +94,12 @@ def course_card_data(sess: Session, courses: list[Course]) -> list[dict[str, Any
 
 def curriculum(sess: Session, course_id: str) -> list[dict[str, Any]]:
     chapters = sess.scalars(
-        select(Chapter)
-        .where(Chapter.course_id == course_id)
-        .order_by(Chapter.position, Chapter.id)
+        select(Chapter).where(Chapter.course_id == course_id).order_by(Chapter.position, Chapter.id)
     ).all()
     out: list[dict[str, Any]] = []
     for chapter in chapters:
         lessons = sess.scalars(
-            select(Lesson)
-            .where(Lesson.chapter_id == chapter.id)
-            .order_by(Lesson.position, Lesson.id)
+            select(Lesson).where(Lesson.chapter_id == chapter.id).order_by(Lesson.position, Lesson.id)
         ).all()
         out.append({"chapter": chapter, "lessons": lessons})
     return out
@@ -121,18 +112,9 @@ def home() -> str:
         cards = course_card_data(sess, courses[:6])
         stats = {
             "courses": sess.scalar(select(func.count()).select_from(Course)) or 0,
-            "students": sess.scalar(
-                select(func.count()).select_from(User).where(User.role == ROLE_STUDENT)
-            )
-            or 0,
-            "instructors": sess.scalar(
-                select(func.count())
-                .select_from(User)
-                .where(User.role == ROLE_INSTRUCTOR)
-            )
-            or 0,
-            "enrollments": sess.scalar(select(func.count()).select_from(Enrollment))
-            or 0,
+            "students": sess.scalar(select(func.count()).select_from(User).where(User.role == ROLE_STUDENT)) or 0,
+            "instructors": sess.scalar(select(func.count()).select_from(User).where(User.role == ROLE_INSTRUCTOR)) or 0,
+            "enrollments": sess.scalar(select(func.count()).select_from(Enrollment)) or 0,
         }
     return render_template("main/home.html", cards=cards, stats=stats)
 
@@ -156,11 +138,7 @@ def courses() -> str:
         categories = list(sess.scalars(select(Category).order_by(Category.name)).all())
         tags = list(sess.scalars(select(Tag).order_by(Tag.name)).all())
         instructors = list(
-            sess.scalars(
-                select(User)
-                .where(User.role == ROLE_INSTRUCTOR)
-                .order_by(User.full_name)
-            ).all()
+            sess.scalars(select(User).where(User.role == ROLE_INSTRUCTOR).order_by(User.full_name)).all()
         )
 
     return render_template(
@@ -183,7 +161,12 @@ def course_detail(course_id: str) -> str | Response:
     if request.method == "POST":
         if actor is None:
             flash("Vui lòng đăng nhập để đăng ký khoá học.", "error")
-            return redirect(url_for("auth.login", next=url_for("main.course_detail", course_id=course_id)))
+            return redirect(
+                url_for(
+                    "auth.login",
+                    next=url_for("main.course_detail", course_id=course_id),
+                )
+            )
         if actor["role"] != ROLE_STUDENT:
             flash("Chỉ sinh viên mới đăng ký được khoá học.", "error")
             return redirect(url_for("main.course_detail", course_id=course_id))
@@ -214,9 +197,7 @@ def course_detail(course_id: str) -> str | Response:
         if course is None:
             abort(404)
 
-        is_staff = actor is not None and (
-            actor["role"] == ROLE_ADMIN or course.instructor_id == actor["id"]
-        )
+        is_staff = actor is not None and (actor["role"] == ROLE_ADMIN or course.instructor_id == actor["id"])
         if course.status != COURSE_PUBLISHED and not is_staff:
             abort(404)
 
@@ -234,25 +215,11 @@ def course_detail(course_id: str) -> str | Response:
                 is not None
             )
         students = (
-            sess.scalar(
-                select(func.count())
-                .select_from(Enrollment)
-                .where(Enrollment.course_id == course_id)
-            )
-            or 0
+            sess.scalar(select(func.count()).select_from(Enrollment).where(Enrollment.course_id == course_id)) or 0
         )
-        quiz_count = (
-            sess.scalar(
-                select(func.count())
-                .select_from(Quiz)
-                .where(Quiz.course_id == course_id)
-            )
-            or 0
-        )
+        quiz_count = sess.scalar(select(func.count()).select_from(Quiz).where(Quiz.course_id == course_id)) or 0
 
-        quizzes = list(
-            sess.scalars(select(Quiz).where(Quiz.course_id == course_id)).all()
-        )
+        quizzes = list(sess.scalars(select(Quiz).where(Quiz.course_id == course_id)).all())
 
     return render_template(
         "main/course_detail.html",
@@ -282,9 +249,7 @@ def course_preview(course_id: str, lesson_id: int) -> str | Response:
         if chapter is None or chapter.course_id != course_id:
             abort(404)
 
-        is_staff = actor is not None and (
-            actor["role"] == ROLE_ADMIN or course.instructor_id == actor["id"]
-        )
+        is_staff = actor is not None and (actor["role"] == ROLE_ADMIN or course.instructor_id == actor["id"])
         enrolled = False
         if actor is not None and actor["role"] == ROLE_STUDENT:
             enrolled = (
@@ -323,9 +288,7 @@ def course_preview(course_id: str, lesson_id: int) -> str | Response:
 def instructors() -> str:
     with get_db().session() as sess:
         people = sess.scalars(
-            select(User)
-            .where(User.role == ROLE_INSTRUCTOR)
-            .order_by(User.full_name, User.email)
+            select(User).where(User.role == ROLE_INSTRUCTOR).order_by(User.full_name, User.email)
         ).all()
         rows = []
         for person in people:
@@ -345,9 +308,7 @@ def instructors() -> str:
 
 
 def _student_dashboard(sess: Session, actor: dict[str, Any]) -> dict[str, Any]:
-    enrollments = sess.scalars(
-        select(Enrollment).where(Enrollment.student_id == actor["id"])
-    ).all()
+    enrollments = sess.scalars(select(Enrollment).where(Enrollment.student_id == actor["id"])).all()
     items = []
     for enrollment in enrollments:
         course = sess.get(Course, enrollment.course_id)
@@ -388,20 +349,11 @@ def _student_dashboard(sess: Session, actor: dict[str, Any]) -> dict[str, Any]:
 
 
 def _instructor_dashboard(sess: Session, actor: dict[str, Any]) -> dict[str, Any]:
-    taught = sess.scalars(
-        select(Course)
-        .where(Course.instructor_id == actor["id"])
-        .order_by(Course.title)
-    ).all()
+    taught = sess.scalars(select(Course).where(Course.instructor_id == actor["id"]).order_by(Course.title)).all()
     items = []
     for course in taught:
         students = (
-            sess.scalar(
-                select(func.count())
-                .select_from(Enrollment)
-                .where(Enrollment.course_id == course.id)
-            )
-            or 0
+            sess.scalar(select(func.count()).select_from(Enrollment).where(Enrollment.course_id == course.id)) or 0
         )
         items.append({"course": course, "students": students})
     return {"items": items}
@@ -413,28 +365,17 @@ def _admin_dashboard(sess: Session, actor: dict[str, Any]) -> dict[str, Any]:
         "users": sess.scalar(select(func.count()).select_from(User)) or 0,
         "courses": sess.scalar(select(func.count()).select_from(Course)) or 0,
         "enrollments": sess.scalar(select(func.count()).select_from(Enrollment)) or 0,
-        "published": sess.scalar(
-            select(func.count())
-            .select_from(Course)
-            .where(Course.status == COURSE_PUBLISHED)
-        )
+        "published": sess.scalar(select(func.count()).select_from(Course).where(Course.status == COURSE_PUBLISHED))
         or 0,
     }
     role_counts = [
         {
             "role": role,
-            "count": sess.scalar(
-                select(func.count()).select_from(User).where(User.role == role)
-            )
-            or 0,
+            "count": sess.scalar(select(func.count()).select_from(User).where(User.role == role)) or 0,
         }
         for role in (ROLE_ADMIN, ROLE_INSTRUCTOR, ROLE_STUDENT)
     ]
-    recent = list(
-        sess.scalars(
-            select(Course).order_by(Course.created_at.desc()).limit(8)
-        ).all()
-    )
+    recent = list(sess.scalars(select(Course).order_by(Course.created_at.desc()).limit(8)).all())
     return {"totals": totals, "role_counts": role_counts, "recent": recent}
 
 
@@ -494,29 +435,12 @@ def member_profile(user_id: str) -> str:
             )
 
         shared = []
-        if actor["id"] != member.id:
-            if actor["role"] == ROLE_STUDENT:
-                mine = set(
-                    sess.scalars(
-                        select(Enrollment.course_id).where(
-                            Enrollment.student_id == actor["id"]
-                        )
-                    ).all()
-                )
-                theirs = set(
-                    sess.scalars(
-                        select(Enrollment.course_id).where(
-                            Enrollment.student_id == member.id
-                        )
-                    ).all()
-                )
-                common = mine & theirs
-                if common:
-                    shared = list(
-                        sess.scalars(
-                            select(Course).where(Course.id.in_(common))
-                        ).all()
-                    )
+        if actor["id"] != member.id and actor["role"] == ROLE_STUDENT:
+            mine = set(sess.scalars(select(Enrollment.course_id).where(Enrollment.student_id == actor["id"])).all())
+            theirs = set(sess.scalars(select(Enrollment.course_id).where(Enrollment.student_id == member.id)).all())
+            common = mine & theirs
+            if common:
+                shared = list(sess.scalars(select(Course).where(Course.id.in_(common))).all())
 
     return render_template(
         "main/member_profile.html",

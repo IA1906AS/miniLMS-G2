@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from flask import Blueprint, abort, jsonify, request, url_for
+from sqlalchemy import select
 
 from web.auth import can_manage_course, current_user, login_required
 from web.database import get_db
@@ -23,7 +24,6 @@ from web.models import (
     Submission,
     User,
 )
-from sqlalchemy import select
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -36,11 +36,7 @@ def _course_json(course: Course, instructor: User | None) -> dict[str, Any]:
         "status": course.status,
         "price": course.price,
         "categoryId": course.category_id,
-        "instructor": (
-            {"id": instructor.id, "name": instructor.display_name}
-            if instructor
-            else None
-        ),
+        "instructor": ({"id": instructor.id, "name": instructor.display_name} if instructor else None),
     }
 
 
@@ -90,9 +86,7 @@ def get_course(course_id: str) -> Any:
         instructor = sess.get(User, course.instructor_id)
         chapters = []
         for chapter in sess.scalars(
-            select(Chapter)
-            .where(Chapter.course_id == course_id)
-            .order_by(Chapter.position, Chapter.id)
+            select(Chapter).where(Chapter.course_id == course_id).order_by(Chapter.position, Chapter.id)
         ).all():
             lessons = [
                 {
@@ -103,14 +97,10 @@ def get_course(course_id: str) -> Any:
                     "isFreePreview": lesson.is_free_preview,
                 }
                 for lesson in sess.scalars(
-                    select(Lesson)
-                    .where(Lesson.chapter_id == chapter.id)
-                    .order_by(Lesson.position, Lesson.id)
+                    select(Lesson).where(Lesson.chapter_id == chapter.id).order_by(Lesson.position, Lesson.id)
                 ).all()
             ]
-            chapters.append(
-                {"id": chapter.id, "title": chapter.title, "lessons": lessons}
-            )
+            chapters.append({"id": chapter.id, "title": chapter.title, "lessons": lessons})
         quizzes = [
             {
                 "id": quiz.id,
@@ -119,11 +109,7 @@ def get_course(course_id: str) -> Any:
                 "passScore": quiz.pass_score,
                 "maxAttempts": quiz.max_attempts,
             }
-            for quiz in sess.scalars(
-                select(Quiz).where(
-                    Quiz.course_id == course_id, Quiz.status == "PUBLISHED"
-                )
-            ).all()
+            for quiz in sess.scalars(select(Quiz).where(Quiz.course_id == course_id, Quiz.status == "PUBLISHED")).all()
         ]
         assignments = [
             {
@@ -132,9 +118,7 @@ def get_course(course_id: str) -> Any:
                 "dueAt": a.due_at.isoformat() if a.due_at else None,
                 "maxScore": a.max_score,
             }
-            for a in sess.scalars(
-                select(Assignment).where(Assignment.course_id == course_id)
-            ).all()
+            for a in sess.scalars(select(Assignment).where(Assignment.course_id == course_id)).all()
         ]
         data = _course_json(course, instructor)
         data.update({"chapters": chapters, "quizzes": quizzes, "assignments": assignments})
@@ -162,9 +146,7 @@ def get_grades(course_id: str) -> Any:
             if not enrolled:
                 abort(403)
 
-        rows = sess.scalars(
-            select(Enrollment).where(Enrollment.course_id == course_id)
-        ).all()
+        rows = sess.scalars(select(Enrollment).where(Enrollment.course_id == course_id)).all()
 
         result = []
         for enrollment in rows:
@@ -237,11 +219,7 @@ _OPENAPI = {
         "description": "REST API cho các tính năng chính. Xác thực bằng cookie JWT.",
     },
     "servers": [{"url": "/"}],
-    "components": {
-        "securitySchemes": {
-            "cookieAuth": {"type": "apiKey", "in": "cookie", "name": "lms_token"}
-        }
-    },
+    "components": {"securitySchemes": {"cookieAuth": {"type": "apiKey", "in": "cookie", "name": "lms_token"}}},
     "paths": {
         "/api/me": {
             "get": {
@@ -272,7 +250,10 @@ _OPENAPI = {
                         "schema": {"type": "string"},
                     }
                 ],
-                "responses": {"200": {"description": "OK"}, "404": {"description": "Not found"}},
+                "responses": {
+                    "200": {"description": "OK"},
+                    "404": {"description": "Not found"},
+                },
             }
         },
         "/api/courses/{courseId}/grades": {
