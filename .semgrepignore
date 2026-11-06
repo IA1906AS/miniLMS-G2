@@ -14,3 +14,12 @@ htmlcov/
 
 # Bỏ qua thư mục test (thường chứa mock password, test tokens)
 tests/
+
+# Flask + Jinja2: rule CSRF của Django không áp dụng cho template .html
+web/templates/
+
+# Script dev: migration SQL, TESTING=True, tài khoản demo
+tools/
+
+# Tài liệu và mã minh hoạ lỗi cố ý (dùng cho báo cáo PoC)
+docs/

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Tiến độ — miniLMS{% endblock %}
+{% block content %}
+<h1>Tiến độ học tập</h1>
+
+<section class="grid three">
+  <article class="card stat-card">
+    <span class="stat-num">{{ overall_percent }}%</span>
+    <span class="muted">hoàn thành tổng thể</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ overall_done }}/{{ overall_total }}</span>
+    <span class="muted">bài học đã xong</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ study_minutes }}</span>
+    <span class="muted">phút nội dung đã học</span>
+  </article>
+</section>
+
+<h2 class="mt">Theo từng khoá</h2>
+{% if rows %}
+  <div class="grid two">
+    {% for row in rows %}
+      <article class="card">
+        <h3>{{ row.course.title }}</h3>
+        {{ m.progress(row.percent, row.done, row.total) }}
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ m.empty('Chưa có dữ liệu tiến độ.') }}
+{% endif %}
+{% endblock %}

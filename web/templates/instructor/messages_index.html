@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Tin nhắn — Giảng viên{% endblock %}
+{% block content %}
+<h1>Tin nhắn</h1>
+
+{% if conversations %}
+  <div class="grid two">
+    {% for conv in conversations %}
+      <article class="card">
+        <h3>{{ conv.course.title }}</h3>
+        <p class="muted small">SV: {{ conv.student.display_name }}</p>
+        {% if conv.last_message %}
+          <p class="muted small">{{ conv.last_message.body | truncate(60) }}</p>
+          <p class="muted small">{{ conv.last_message.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        {% else %}
+          <p class="muted">Chưa có tin nhắn.</p>
+        {% endif %}
+        {% if conv.unread > 0 %}
+          <span class="pill ok">{{ conv.unread }} chưa đọc</span>
+        {% endif %}
+        <a class="btn small mt" href="{{ url_for('instructor.messages_conversation', student_id=conv.student.id) }}">Mở hội thoại</a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ m.empty('Bạn chưa có hội thoại nào.') }}
+{% endif %}
+{% endblock %}

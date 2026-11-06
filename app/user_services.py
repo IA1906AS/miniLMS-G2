@@ -153,10 +153,7 @@ def reset_password(
         is_same_user = False
         if target_user_id and str(target_user_id).strip() == actor.get("id"):
             is_same_user = True
-        if (
-            target_email
-            and str(target_email).strip().lower() == str(actor.get("email")).lower()
-        ):
+        if target_email and str(target_email).strip().lower() == str(actor.get("email")).lower():
             is_same_user = True
 
         if not is_same_user and actor.get("role") != "ADMIN":
@@ -176,9 +173,7 @@ def reset_password(
             raise NotFound("Tài khoản không tồn tại")
 
     # Xử lý mật khẩu mới
-    if new_password is None or (
-        isinstance(new_password, str) and not new_password.strip()
-    ):
+    if new_password is None or (isinstance(new_password, str) and not new_password.strip()):
         if actor.get("role") == "ADMIN" and target_user["id"] != actor.get("id"):
             # ADMIN reset nhưng không truyền mật khẩu cụ thể -> tự sinh mật khẩu tạm
             new_password = "Reset@" + secrets.token_hex(4) + "A1"
@@ -190,9 +185,7 @@ def reset_password(
     new_hash = hash_password(new_password)
     store.update_password(target_user["id"], new_hash)
 
-    is_admin_action = actor.get("role") == "ADMIN" and target_user["id"] != actor.get(
-        "id"
-    )
+    is_admin_action = actor.get("role") == "ADMIN" and target_user["id"] != actor.get("id")
     action_name = "ADMIN_RESET_PASSWORD" if is_admin_action else "RESET_PASSWORD"
     log_event(
         actor_id=actor["id"],

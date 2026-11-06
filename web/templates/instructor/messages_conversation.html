@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Nhắn tin với {{ student.display_name }} — Giảng viên{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.messages_index') }}">Tin nhắn</a> / {{ student.display_name }}
+</nav>
+
+<h1>Hội thoại với {{ student.display_name }}</h1>
+
+<div class="card" style="max-height: 500px; overflow-y: auto;">
+  {% if messages %}
+    {% for msg, sender in messages %}
+      <div class="message {% if msg.sender_id == current_user.id %}sent{% else %}received{% endif %}" style="padding: 1rem; border-bottom: 1px solid var(--line);">
+        <p class="muted small">{{ sender.display_name }} · {{ msg.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        <div class="prose">{{ msg.body }}</div>
+        {% if msg.sender_id == current_user.id and msg.read_at %}<span class="pill ok">Đã đọc</span>{% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    {{ m.empty('Chưa có tin nhắn nào.') }}
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('instructor.messages_send', student_id=student.id) }}" class="form-card mt" style="display: flex; gap: 0.5rem;">
+  <label style="flex: 1;">Tin nhắn
+    <input type="text" name="content" required style="width: 100%;">
+  </label>
+  <button type="submit" class="btn" style="align-self: end;">Gửi</button>
+</form>
+{% endblock %}

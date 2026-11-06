@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt — miniLMS{% endblock %}
+{% block content %}
+<h1>Cài đặt tài khoản</h1>
+
+<form method="post" action="{{ url_for('student.settings') }}" class="card form-card">
+  <label class="check">
+    <input type="checkbox" name="email_notifications" value="1" {% if enabled %}checked{% endif %}>
+    Nhận thông báo qua email
+  </label>
+  <button type="submit" class="btn">Lưu cài đặt</button>
+</form>
+{% endblock %}

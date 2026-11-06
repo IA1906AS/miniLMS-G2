@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Chứng chỉ — miniLMS{% endblock %}
+{% block content %}
+<h1>Chứng chỉ</h1>
+
+{% if rows %}
+  {% for row in rows %}
+    <section class="card mt">
+      <h3>{{ row.course.title }}</h3>
+
+      <h4>Đã cấp</h4>
+      {% if row.issued %}
+        <table class="table">
+          <thead><tr><th>Học viên</th><th>Mã</th><th>Điểm</th><th>Cấp ngày</th><th></th></tr></thead>
+          <tbody>
+            {% for item in row.issued %}
+              <tr>
+                <td>{{ item.student.display_name }}</td>
+                <td class="muted small"><code>{{ item.certificate.code }}</code></td>
+                <td>{{ item.certificate.final_score if item.certificate.final_score is not none else '—' }}</td>
+                <td class="muted small">{{ item.certificate.issued_at.strftime('%d/%m/%Y') }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('instructor.certificate_revoke', certificate_id=item.certificate.id) }}" class="inline"
+                        onsubmit="return confirm('Thu hồi chứng chỉ này?');">
+                    <button type="submit" class="link danger">Thu hồi</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ m.empty('Chưa cấp chứng chỉ nào.') }}
+      {% endif %}
+
+      <form method="post" action="{{ url_for('instructor.certificate_issue', course_id=row.course.id) }}" class="form-grid mt">
+        <label>Học viên
+          <select name="student_id">
+            {% for s in row.students %}
+              <option value="{{ s.student.id }}">{{ s.student.display_name }} ({{ s.student.email }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Điểm cuối khoá
+          <input type="number" name="final_score" step="0.1" min="0" max="10" value="8">
+        </label>
+        <button type="submit" class="btn small">Cấp chứng chỉ</button>
+      </form>
+    </section>
+  {% endfor %}
+{% else %}
+  {{ m.empty('Bạn chưa phụ trách khoá học nào.') }}
+{% endif %}
+{% endblock %}

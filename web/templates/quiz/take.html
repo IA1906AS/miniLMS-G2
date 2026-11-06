@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Làm bài: {{ quiz.title }} — miniLMS{% endblock %}
+{% block content %}
+<h1>{{ quiz.title }}</h1>
+<p class="muted">Chọn đáp án đúng cho từng câu rồi nộp bài.</p>
+
+{% if remaining_seconds is not none %}
+  <p class="flash info">⏱ Thời gian còn lại: <strong id="countdown"></strong></p>
+{% endif %}
+
+<form id="quiz-form" method="post" action="{{ url_for('quiz.submit', quiz_id=quiz.id, attempt_id=attempt.id) }}">
+  {% for q in questions %}
+    <article class="card question">
+      <p class="q-prompt"><strong>Câu {{ loop.index }}.</strong> {{ q.prompt }} <span class="muted small">({{ q.points }} điểm)</span></p>
+      {% if q.kind == 'MCQ' %}
+        <ul class="options">
+          {% for opt in q.options %}
+            <li>
+              <label class="check">
+                <input type="radio" name="q_{{ q.id }}" value="{{ opt }}" required>
+                {{ opt }}
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <label>Trả lời
+          <textarea name="q_{{ q.id }}" rows="4" required></textarea>
+        </label>
+      {% endif %}
+    </article>
+  {% endfor %}
+
+  {% if questions %}
+    <button type="submit" class="btn">Nộp bài</button>
+  {% else %}
+    <p class="empty">Bài kiểm tra chưa có câu hỏi nào.</p>
+  {% endif %}
+</form>
+
+{% if remaining_seconds is not none %}
+<script>
+  (function () {
+    var left = {{ remaining_seconds|int }};
+    var el = document.getElementById("countdown");
+    var form = document.getElementById("quiz-form");
+    function tick() {
+      var m = Math.floor(left / 60);
+      var s = left % 60;
+      el.textContent = m + ":" + (s < 10 ? "0" + s : s);
+      if (left <= 0) {
+        form.submit();
+        return;
+      }
+      left -= 1;
+      setTimeout(tick, 1000);
+    }
+    tick();
+  })();
+</script>
+{% endif %}
+{% endblock %}

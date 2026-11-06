@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Diễn đàn — miniLMS{% endblock %}
+{% block content %}
+<h1>Diễn đàn khoá học</h1>
+
+{% if rows %}
+  {% for row in rows %}
+    <section class="card mt">
+      <h3>{{ row.course.title }}</h3>
+      {% if row.topics %}
+        <table class="table">
+          <thead><tr><th>Chủ đề</th><th>Tác giả</th><th>Trả lời</th><th>Trạng thái</th><th>Kiểm duyệt</th></tr></thead>
+          <tbody>
+            {% for item in row.topics %}
+              <tr>
+                <td>
+                  {% if item.topic.pinned %}<span class="pill free">Ghim</span>{% endif %}
+                  {{ item.topic.title }}
+                </td>
+                <td class="muted small">{{ item.author }}</td>
+                <td>{{ item.replies }}</td>
+                <td>{% if item.topic.locked %}<span class="pill draft">Đã khoá</span>{% else %}<span class="pill ok">Mở</span>{% endif %}</td>
+                <td class="row-actions">
+                  <form method="post" action="{{ url_for('instructor.forum_moderate', topic_id=item.topic.id) }}" class="inline">
+                    <input type="hidden" name="action" value="pin">
+                    <button type="submit" class="link">{{ 'Bỏ ghim' if item.topic.pinned else 'Ghim' }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('instructor.forum_moderate', topic_id=item.topic.id) }}" class="inline">
+                    <input type="hidden" name="action" value="lock">
+                    <button type="submit" class="link">{{ 'Mở khoá' if item.topic.locked else 'Khoá' }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('instructor.forum_moderate', topic_id=item.topic.id) }}" class="inline"
+                        onsubmit="return confirm('Xoá chủ đề này?');">
+                    <input type="hidden" name="action" value="delete">
+                    <button type="submit" class="link danger">Xoá</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ m.empty('Khoá học chưa có chủ đề nào.') }}
+      {% endif %}
+    </section>
+  {% endfor %}
+{% else %}
+  {{ m.empty('Bạn chưa phụ trách khoá học nào.') }}
+{% endif %}
+{% endblock %}

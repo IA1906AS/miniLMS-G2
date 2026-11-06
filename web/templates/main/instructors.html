@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Giảng viên — miniLMS{% endblock %}
+{% block content %}
+<h1>Đội ngũ giảng viên</h1>
+{% if rows %}
+  <div class="grid two">
+    {% for row in rows %}
+      <article class="card person">
+        <div class="avatar">{{ row.user.display_name[0]|upper }}</div>
+        <div>
+          <h3>{{ row.user.display_name }}</h3>
+          <p class="muted small">{{ row.user.email }}</p>
+          <p class="muted">{{ row.user.bio or 'Giảng viên bộ môn.' }}</p>
+          {% if row.courses %}
+            <ul class="meta">
+              {% for c in row.courses %}
+                <li><a href="{{ url_for('main.course_detail', course_id=c.id) }}">{{ c.title }}</a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="empty">Chưa có giảng viên nào.</p>
+{% endif %}
+{% endblock %}

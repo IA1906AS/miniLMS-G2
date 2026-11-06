@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Dashboard — miniLMS{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+{% if role == 'ADMIN' %}
+  <p class="muted">Tổng quan toàn hệ thống.</p>
+  <section class="grid three mt">
+    <article class="card stat-card">
+      <span class="stat-num">{{ totals.users }}</span>
+      <span class="muted">người dùng</span>
+    </article>
+    <article class="card stat-card">
+      <span class="stat-num">{{ totals.courses }}</span>
+      <span class="muted">khoá học ({{ totals.published }} xuất bản)</span>
+    </article>
+    <article class="card stat-card">
+      <span class="stat-num">{{ totals.enrollments }}</span>
+      <span class="muted">lượt ghi danh</span>
+    </article>
+  </section>
+
+  <section class="card mt">
+    <h2>Phân bố vai trò</h2>
+    <ul class="meta">
+      {% for row in role_counts %}
+        <li>{{ role_labels.get(row.role, row.role) }}: <strong>{{ row.count }}</strong></li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="card mt">
+    <h2>Khoá học gần đây</h2>
+    {% if recent %}
+      <table class="table">
+        <thead><tr><th>Khoá học</th><th>Trạng thái</th><th>Giá</th></tr></thead>
+        <tbody>
+          {% for course in recent %}
+            <tr>
+              <td><a href="{{ url_for('main.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+              <td><span class="pill {{ 'ok' if course.status == 'PUBLISHED' else 'draft' }}">{{ course.status }}</span></td>
+              <td>{{ '{:,.0f}đ'.format(course.price) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {{ m.empty('Chưa có khoá học nào.') }}
+    {% endif %}
+  </section>
+
+{% elif role == 'INSTRUCTOR' %}
+  <p class="muted">Tổng quan các khoá bạn phụ trách.</p>
+  {% if items %}
+    <div class="grid">
+      {% for item in items %}
+        <article class="card course-card">
+          <div class="card-top">
+            <span class="pill">{{ item.course.status }}</span>
+          </div>
+          <h3><a href="{{ url_for('main.course_detail', course_id=item.course.id) }}">{{ item.course.title }}</a></h3>
+          <ul class="meta">
+            <li>{{ item.students }} học viên</li>
+            <li>Giá: {{ '{:,.0f}đ'.format(item.course.price) }}</li>
+          </ul>
+          <div class="row-actions">
+            <a class="btn small" href="{{ url_for('instructor.course_edit', course_id=item.course.id) }}">Sửa</a>
+            <a class="btn small ghost" href="{{ url_for('instructor.course_curriculum', course_id=item.course.id) }}">Nội dung</a>
+            <a class="btn small ghost" href="{{ url_for('instructor.course_students_view', course_id=item.course.id) }}">Học viên</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ m.empty('Bạn chưa có khoá học nào.') }}
+    <a class="btn" href="{{ url_for('instructor.course_new') }}">Tạo khoá học đầu tiên</a>
+  {% endif %}
+  <p class="mt"><a class="btn ghost" href="{{ url_for('instructor.courses') }}">Quản lý giảng dạy →</a></p>
+
+{% else %}
+  <p class="muted">Tiến độ học tập của bạn.</p>
+  {% if items %}
+    <div class="grid two">
+      {% for item in items %}
+        <article class="card">
+          <h3><a href="{{ url_for('student.learn', course_id=item.course.id) }}">{{ item.course.title }}</a></h3>
+          {{ m.progress(item.percent, item.done, item.total) }}
+          <a class="btn small mt" href="{{ url_for('student.learn', course_id=item.course.id) }}">Tiếp tục học</a>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ m.empty('Bạn chưa đăng ký khoá học nào.') }}
+    <a class="btn" href="{{ url_for('main.courses') }}">Khám phá khoá học</a>
+  {% endif %}
+{% endif %}
+{% endblock %}

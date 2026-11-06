@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bảng xếp hạng — miniLMS{% endblock %}
+{% block content %}
+<h1>Bảng xếp hạng</h1>
+<p class="muted">Xếp theo % hoàn thành khoá học.</p>
+
+{% if boards %}
+  {% for board in boards %}
+    <section class="card mt">
+      <h3>{{ board.course.title }}</h3>
+      {% if board.entries %}
+        <table class="table">
+          <thead><tr><th>#</th><th>Học viên</th><th>Tiến độ</th></tr></thead>
+          <tbody>
+            {% for entry in board.entries %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ entry.student.display_name }}</td>
+                <td>{{ entry.percent }}% ({{ entry.done }}/{{ entry.total }})</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ m.empty('Chưa có học viên nào.') }}
+      {% endif %}
+    </section>
+  {% endfor %}
+{% else %}
+  {{ m.empty('Chưa có bảng xếp hạng công khai.') }}
+{% endif %}
+{% endblock %}

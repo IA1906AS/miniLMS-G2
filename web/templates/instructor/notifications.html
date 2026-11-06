@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Thông báo lớp học — Giảng viên{% endblock %}
+{% block content %}
+<h1>Gửi thông báo lớp học</h1>
+
+<form method="post" action="{{ url_for('instructor.notification_send') }}" class="card form-card mt">
+  <h3>Tạo thông báo mới</h3>
+  <label>Khoá học *
+    <select name="course_id" required>
+      <option value="">— chọn khoá —</option>
+      {% for c in taught %}
+        <option value="{{ c.id }}">{{ c.title }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Tiêu đề *
+    <input type="text" name="title" required maxlength="200">
+  </label>
+  <label>Nội dung *
+    <textarea name="body" rows="4" required></textarea>
+  </label>
+  <p class="muted small">Thông báo được lưu cho từng sinh viên trong lớp và gửi kèm email.</p>
+  <button type="submit" class="btn">Gửi tới cả lớp</button>
+</form>
+
+<h2 class="mt">Đã gửi gần đây</h2>
+{% if recent %}
+  <table class="table">
+    <thead><tr><th>Người nhận</th><th>Tiêu đề</th><th>Nội dung</th><th>Thời điểm</th><th>Đã đọc</th></tr></thead>
+    <tbody>
+      {% for note, user in recent %}
+        <tr>
+          <td>{{ user.display_name }}</td>
+          <td>{{ note.title }}</td>
+          <td class="muted small clamp">{{ note.body }}</td>
+          <td class="muted small">{{ note.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td><span class="pill {{ 'ok' if note.read_at else 'warn' }}">{{ 'Đã đọc' if note.read_at else 'Chưa đọc' }}</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Bạn chưa gửi thông báo nào.') }}
+{% endif %}
+{% endblock %}

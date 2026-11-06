@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Quản lý Quiz — Admin{% endblock %}
+{% block content %}
+<h1>Toàn bộ bài kiểm tra</h1>
+
+{% if quizzes %}
+  <table class="table">
+    <thead><tr><th>Quiz</th><th>Khóa học</th><th>Giảng viên</th><th>Số câu</th><th>Thời gian</th><th>Điểm đạt</th><th>Lượt làm</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for quiz, course, instructor in quizzes %}
+        <tr>
+          <td>{{ quiz.title }}</td>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ instructor.display_name }}</td>
+          <td>{{ quiz.questions|length }}</td>
+          <td>{{ quiz.time_limit_min }} phút</td>
+          <td>{{ quiz.pass_score }}/10</td>
+          <td>{{ quiz.attempts|length }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.quiz_delete', quiz_id=quiz.id) }}" class="inline" onsubmit="return confirm('Xóa bài kiểm tra này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có bài kiểm tra nào.') }}
+{% endif %}
+{% endblock %}

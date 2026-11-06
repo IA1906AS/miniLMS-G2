@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ user.display_name }} — Admin{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('admin.users') }}">Người dùng</a> / {{ user.display_name }}
+</nav>
+
+<h1>{{ user.display_name }} ({{ user.id }})</h1>
+<span class="badge role-{{ user.role|lower }}">{{ role_labels.get(user.role, user.role) }}</span>
+<span class="pill {{ 'ok' if user.status == 'ACTIVE' else 'danger' }}">{{ user.status }}</span>
+
+<section class="card mt">
+  <h2>Thông tin cơ bản</h2>
+  <ul class="meta">
+    <li>Email: {{ user.email }}</li>
+    <li>Họ tên: {{ user.full_name or '—' }}</li>
+    <li>Giới thiệu: {{ user.bio or '—' }}</li>
+    <li>Ngày tạo: {{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '—' }}</li>
+  </ul>
+</section>
+
+{% if taught %}
+<section class="card mt">
+  <h2>Khóa học phụ trách ({{ taught|length }})</h2>
+  {% for course in taught %}
+    <div class="card mt" style="padding: 0.5rem;">
+      <a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a>
+      <span class="pill {{ 'ok' if course.status == 'PUBLISHED' else 'draft' }}">{{ course.status }}</span>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card mt">
+  <h2>Khóa học đã đăng ký ({{ enrollments|length }})</h2>
+  {% if enrollments %}
+    <table class="table">
+      <thead><tr><th>Khóa học</th><th>Trạng thái</th><th>Đăng ký lúc</th><th>Tiến độ</th></tr></thead>
+      <tbody>
+        {% for enrollment, course in enrollments %}
+          <tr>
+            <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+            <td><span class="pill {{ 'ok' if enrollment.status == 'ACTIVE' else 'draft' }}">{{ enrollment.status }}</span></td>
+            <td class="muted small">{{ enrollment.created_at.strftime('%d/%m/%Y') if enrollment.created_at else '—' }}</td>
+            <td>—</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa đăng ký khóa học nào.') }}
+  {% endif %}
+</section>
+
+{% if certificates %}
+<section class="card mt">
+  <h2>Chứng chỉ đã đạt ({{ certificates|length }})</h2>
+  <table class="table">
+    <thead><tr><th>Khóa học</th><th>Mã</th><th>Điểm</th><th>Ngày cấp</th></tr></thead>
+    <tbody>
+      {% for cert, course in certificates %}
+        <tr>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td class="muted small"><code>{{ cert.code }}</code></td>
+          <td>{{ cert.final_score if cert.final_score is not none else '—' }}</td>
+          <td class="muted small">{{ cert.issued_at.strftime('%d/%m/%Y') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</section>
+
+{% if attempts %}
+<section class="card mt">
+  <h2>Lịch sử làm Quiz (gần đây)</h2>
+  <table class="table">
+    <thead><tr><th>Quiz</th><th>Khóa học</th><th>Điểm</th><th>Kết quả</th><th>Nộp lúc</th></tr></thead>
+    <tbody>
+      {% for attempt, quiz, course in attempts %}
+        <tr>
+          <td>{{ quiz.title }}</td>
+          <td>{{ course.title }}</td>
+          <td>{{ attempt.score if attempt.score is not none else '—' }}</td>
+          <td><span class="pill {{ 'ok' if attempt.passed else 'warn' }}">{{ 'Đạt' if attempt.passed else 'Chưa đạt' }}</span></td>
+          <td class="muted small">{{ attempt.submitted_at.strftime('%d/%m/%Y %H:%M') if attempt.submitted_at else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</section>
+
+<div class="row-actions mt">
+  {% if user.status == 'ACTIVE' %}
+    <form method="post" action="{{ url_for('admin.user_lock', user_id=user.id) }}" class="inline" onsubmit="return confirm('Khóa tài khoản này?');">
+      <button type="submit" class="link danger">Khóa tài khoản</button>
+    </form>
+  {% else %}
+    <form method="post" action="{{ url_for('admin.user_unlock', user_id=user.id) }}" class="inline">
+      <button type="submit" class="link">Mở khóa</button>
+    </form>
+  {% endif %}
+  <a class="btn ghost" href="{{ url_for('admin.users') }}">← Quay lại</a>
+</div>
+{% endblock %}

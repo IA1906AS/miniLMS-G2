@@ -12,17 +12,13 @@ from app.store import Store, get_store
 
 def hash_password(plain_password: str) -> str:
     """Hash password using bcrypt with cost >= 10."""
-    return bcrypt.hashpw(
-        plain_password.encode("utf-8"), bcrypt.gensalt(rounds=10)
-    ).decode("utf-8")
+    return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt(rounds=10)).decode("utf-8")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
     """Verify password against bcrypt hash."""
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"), password_hash.encode("utf-8")
-        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
     except Exception:
         return False
 

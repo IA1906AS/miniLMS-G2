@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Thông báo hệ thống — Admin{% endblock %}
+{% block content %}
+<h1>Gửi thông báo hệ thống</h2>
+
+<form method="post" action="{{ url_for('admin.notification_send') }}" class="card form-card mt" style="max-width: 600px;">
+  <h3>Tạo thông báo mới</h3>
+  <label>Đối tượng *
+    <select name="target" required>
+      <option value="all">Tất cả người dùng</option>
+      <option value="role:ADMIN">Quản trị viên</option>
+      <option value="role:INSTRUCTOR">Giảng viên</option>
+      <option value="role:STUDENT">Sinh viên</option>
+    </select>
+  </label>
+  <label>Tiêu đề *
+    <input type="text" name="title" required>
+  </label>
+  <label>Nội dung *
+    <textarea name="body" rows="4" required></textarea>
+  </label>
+  <label>Link (tùy chọn)
+    <input type="url" name="link" placeholder="https://...">
+  </label>
+  <button type="submit" class="btn">Gửi thông báo</button>
+</form>
+
+<h2 class="mt">Lịch sử gửi (gần đây)</h2>
+{% if recent %}
+  <table class="table">
+    <thead><tr><th>Người nhận</th><th>Loại</th><th>Tiêu đề</th><th>Nội dung</th><th>Ngày gửi</th><th>Đã đọc</th></tr></thead>
+    <tbody>
+      {% for note, user in recent %}
+        <tr>
+          <td>{{ user.display_name if user else 'Hệ thống' }}</td>
+          <td>{{ note.kind }}</td>
+          <td>{{ note.title }}</td>
+          <td class="muted small clamp">{{ note.body }}</td>
+          <td class="muted small">{{ note.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td><span class="pill {{ 'ok' if note.read_at else 'warn' }}">{{ 'Đã đọc' if note.read_at else 'Chưa đọc' }}</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có thông báo nào.') }}
+{% endif %}
+{% endblock %}

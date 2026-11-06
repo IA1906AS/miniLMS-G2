@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Chứng chỉ {{ certificate.code }} — miniLMS{% endblock %}
+{% block content %}
+<h1>Chứng chỉ hoàn thành</h1>
+
+<article class="card cert-sheet">
+  <p class="muted small">miniLMS certifies that</p>
+  <h2 class="cert-name">{{ holder.display_name if holder else '—' }}</h2>
+  <p class="muted">đã hoàn thành khoá học</p>
+  <h3>{{ course.title if course else '—' }}</h3>
+  {% if instructor %}<p class="muted small">Giảng viên: {{ instructor.display_name }}</p>{% endif %}
+  {% if certificate.final_score is not none %}
+    <p>Điểm cuối khoá: <strong>{{ certificate.final_score }}/10</strong></p>
+  {% endif %}
+  <p class="muted small">Mã chứng chỉ: <code>{{ certificate.code }}</code></p>
+  <p class="muted small">Cấp ngày {{ certificate.issued_at.strftime('%d/%m/%Y') }}</p>
+</article>
+
+<p class="mt"><a class="btn ghost" href="{{ url_for('student.certificates') }}">← Về danh sách chứng chỉ</a></p>
+{% endblock %}

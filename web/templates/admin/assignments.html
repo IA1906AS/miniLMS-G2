@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Quản lý Bài tập — Admin{% endblock %}
+{% block content %}
+<h1>Toàn bộ bài tập</h1>
+
+{% if assignments %}
+  <table class="table">
+    <thead><tr><th>Bài tập</th><th>Khóa học</th><th>Giảng viên</th><th>Điểm tối đa</th><th>Hạn nộp</th><th>Số bài nộp</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for assignment, course, instructor in assignments %}
+        <tr>
+          <td>{{ assignment.title }}</td>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ instructor.display_name }}</td>
+          <td>{{ assignment.max_score }}</td>
+          <td class="muted small">{{ assignment.due_at.strftime('%d/%m/%Y %H:%M') if assignment.due_at else '—' }}</td>
+          <td>{{ assignment.submissions|length }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.assignment_delete', assignment_id=assignment.id) }}" class="inline" onsubmit="return confirm('Xóa bài tập này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có bài tập nào.') }}
+{% endif %}
+{% endblock %}

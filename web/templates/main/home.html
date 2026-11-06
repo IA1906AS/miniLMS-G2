@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}miniLMS — Học trực tuyến{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Học mọi lúc, tiến bộ mỗi ngày</h1>
+    <p class="muted">Nền tảng học trực tuyến với khoá học, bài kiểm tra, chứng chỉ và cộng đồng hỏi đáp.</p>
+    <div class="hero-actions">
+      <a class="btn" href="{{ url_for('main.courses') }}">Khám phá khoá học</a>
+      {% if not current_user %}<a class="btn ghost" href="{{ url_for('auth.register') }}">Tạo tài khoản</a>{% endif %}
+    </div>
+  </div>
+  <ul class="stats">
+    <li><strong>{{ stats.courses }}</strong><span>khoá học</span></li>
+    <li><strong>{{ stats.students }}</strong><span>sinh viên</span></li>
+    <li><strong>{{ stats.instructors }}</strong><span>giảng viên</span></li>
+    <li><strong>{{ stats.enrollments }}</strong><span>lượt ghi danh</span></li>
+  </ul>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Khoá học nổi bật</h2>
+    <a href="{{ url_for('main.courses') }}">Xem tất cả →</a>
+  </div>
+  {% if cards %}
+    <div class="grid">
+      {% for row in cards %}{{ m.course_card(row) }}{% endfor %}
+    </div>
+  {% else %}
+    {{ m.empty('Chưa có khoá học nào được xuất bản.') }}
+  {% endif %}
+</section>
+{% endblock %}

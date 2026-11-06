@@ -90,9 +90,7 @@ def get_grades(actor: dict[str, Any], course_id: str) -> list[dict[str, Any]]:
     return [{"studentId": row["studentId"], "score": row["score"]} for row in rows]
 
 
-def update_grade(
-    actor: dict[str, Any], course_id: str, student_id: str, score: Any
-) -> dict[str, Any]:
+def update_grade(actor: dict[str, Any], course_id: str, student_id: str, score: Any) -> dict[str, Any]:
     course = authorize_update(actor, course_id)
     validate_score(score)
 

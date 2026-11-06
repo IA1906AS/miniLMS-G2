@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bài tập — miniLMS{% endblock %}
+{% block content %}
+<h1>Bài tập</h1>
+
+{% if rows %}
+  <section class="card mb" style="margin-bottom: 2rem;">
+    <h2>Tạo bài tập mới</h2>
+    <form method="post" action="{{ url_for('instructor.assignment_create', course_id=rows[0].course.id) }}" class="form-grid">
+      <label>Khóa học:
+        <select name="course_id_select" onchange="this.form.action='/instructor/courses/' + this.value + '/assignments'">
+          {% for row in rows %}
+            <option value="{{ row.course.id }}">{{ row.course.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Tiêu đề bài tập:
+        <input type="text" name="title" required placeholder="Nhập tiêu đề...">
+      </label>
+      <label>Mô tả:
+        <textarea name="description" placeholder="Nội dung bài tập..."></textarea>
+      </label>
+      <label>Hạn nộp:
+        <input type="datetime-local" name="due_at">
+      </label>
+      <label>Điểm tối đa:
+        <input type="number" name="max_score" value="10" step="0.5">
+      </label>
+      <button type="submit" class="btn">Thêm bài tập</button>
+    </form>
+  </section>
+
+  <table class="table">
+    <thead><tr><th>Bài tập</th><th>Khoá học</th><th>Số bài nộp</th><th>Hạn nộp</th><th></th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.assignment.title }}</td>
+          <td>{{ row.course.title if row.course else '—' }}</td>
+          <td>{{ row.submitted }}</td>
+          <td class="muted small">{{ row.assignment.due_at.strftime('%d/%m/%Y %H:%M') if row.assignment.due_at else '—' }}</td>
+          <td><a class="btn small ghost" href="{{ url_for('quiz.assignment_detail', assignment_id=row.assignment.id) }}">Chấm bài</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có bài tập nào.') }}
+{% endif %}
+{% endblock %}

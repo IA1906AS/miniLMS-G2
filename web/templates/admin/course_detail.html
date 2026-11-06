@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ course.title }} — Admin{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('admin.courses') }}">Khóa học</a> / {{ course.title }}
+</nav>
+
+<h1>{{ course.title }}</h1>
+<span class="pill {{ 'ok' if course.status == 'PUBLISHED' else 'draft' }}">{{ course.status }}</span>
+<span class="pill">{{ '{:,.0f}đ'.format(course.price) if course.price > 0 else 'Miễn phí' }}</span>
+
+<section class="card mt">
+  <h2>Thông tin cơ bản</h2>
+  <ul class="meta">
+    <li>Giảng viên: <a href="{{ url_for('admin.user_detail', user_id=course.instructor_id) }}">{{ instructor.display_name if instructor else '—' }}</a></li>
+    <li>Danh mục: {{ course.category.name if course.category else '—' }}</li>
+    <li>Giá: {{ '{:,.0f}đ'.format(course.price) }}</li>
+    <li>Ngày tạo: {{ course.created_at.strftime('%d/%m/%Y') if course.created_at else '—' }}</li>
+  </ul>
+  
+  <form method="post" action="{{ url_for('admin.course_reassign', course_id=course.id) }}" class="mt">
+    <label>Chuyển giảng viên
+      <select name="instructor_id">
+        <option value="">— Giữ nguyên —</option>
+        {% for u in instructors %}
+          <option value="{{ u.id }}">{{ u.display_name }} ({{ u.email }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn">Chuyển</button>
+  </form>
+</section>
+
+<section class="card mt">
+  <h2>Chương trình ({{ chapters|length }} chương)</h2>
+  {% if chapters %}
+    <table class="table">
+      <thead><tr><th>Chương</th><th>Số bài</th></tr></thead>
+      <tbody>
+        {% for chapter, lesson_count in chapters %}
+          <tr>
+            <td>{{ chapter.title }}</td>
+            <td>{{ lesson_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có chương nào.') }}
+  {% endif %}
+</section>
+
+<section class="card mt">
+  <h2>Bài kiểm tra ({{ quizzes|length }})</h2>
+  {% if quizzes %}
+    <table class="table">
+      <thead><tr><th>Quiz</th><th>Số câu</th><th>Thời gian</th><th>Điểm đạt</th></tr></thead>
+      <tbody>
+        {% for quiz in quizzes %}
+          <tr>
+            <td>{{ quiz.title }}</td>
+            <td>{{ quiz.questions|length }}</td>
+            <td>{{ quiz.time_limit_min }} phút</td>
+            <td>{{ quiz.pass_score }}/10</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có quiz nào.') }}
+  {% endif %}
+</section>
+
+<section class="card mt">
+  <h2>Bài tập ({{ assignments|length }})</h2>
+  {% if assignments %}
+    <table class="table">
+      <thead><tr><th>Bài tập</th><th>Hạn nộp</th><th>Điểm tối đa</th></tr></thead>
+      <tbody>
+        {% for a in assignments %}
+          <tr>
+            <td>{{ a.title }}</td>
+            <td>{{ a.due_at.strftime('%d/%m/%Y %H:%M') if a.due_at else '—' }}</td>
+            <td>{{ a.max_score }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có bài tập nào.') }}
+  {% endif %}
+</section>
+
+<section class="card mt">
+  <h2>Học viên ({{ enrollments|length }})</h2>
+  {% if enrollments %}
+    <table class="table">
+      <thead><tr><th>Học viên</th><th>Trạng thái</th><th>Đăng ký lúc</th></tr></thead>
+      <tbody>
+        {% for enrollment, student in enrollments %}
+          <tr>
+            <td><a href="{{ url_for('admin.user_detail', user_id=student.id) }}">{{ student.display_name }}</a></td>
+            <td><span class="pill {{ 'ok' if enrollment.status == 'ACTIVE' else 'draft' }}">{{ enrollment.status }}</span></td>
+            <td class="muted small">{{ enrollment.created_at.strftime('%d/%m/%Y') if enrollment.created_at else '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có học viên.') }}
+  {% endif %}
+</section>
+
+{% if certificates %}
+<section class="card mt">
+  <h2>Chứng chỉ đã cấp ({{ certificates|length }})</h2>
+  <table class="table">
+    <thead><tr><th>Học viên</th><th>Mã</th><th>Điểm</th><th>Ngày cấp</th></tr></thead>
+    <tbody>
+      {% for cert, student in certificates %}
+        <tr>
+          <td><a href="{{ url_for('admin.user_detail', user_id=student.id) }}">{{ student.display_name }}</a></td>
+          <td class="muted small"><code>{{ cert.code }}</code></td>
+          <td>{{ cert.final_score if cert.final_score is not none else '—' }}</td>
+          <td class="muted small">{{ cert.issued_at.strftime('%d/%m/%Y') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</section>
+
+<div class="row-actions mt">
+  <form method="post" action="{{ url_for('admin.course_status', course_id=course.id) }}" class="inline">
+    <select name="status" onchange="this.form.submit()">
+      <option value="DRAFT" {% if course.status == 'DRAFT' %}selected{% endif %}>Nháp</option>
+      <option value="PUBLISHED" {% if course.status == 'PUBLISHED' %}selected{% endif %}>Xuất bản</option>
+      <option value="HIDDEN" {% if course.status == 'HIDDEN' %}selected{% endif %}>Ẩn</option>
+    </select>
+  </form>
+  <form method="post" action="{{ url_for('admin.course_delete', course_id=course.id) }}" class="inline" onsubmit="return confirm('Xóa khóa học này?');">
+    <button type="submit" class="link danger">Xóa</button>
+  </form>
+  <a class="btn ghost" href="{{ url_for('admin.courses') }}">← Quay lại</a>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Chứng chỉ — Admin{% endblock %}
+{% block content %}
+<h1>Chứng chỉ toàn hệ thống</h2>
+
+<form method="post" action="{{ url_for('admin.certificate_issue') }}" class="card form-card mt" style="max-width: 600px;">
+  <h3>Cấp chứng chỉ mới</h3>
+  <label>Học viên *
+    <select name="user_id" required>
+      <option value="">— Chọn học viên —</option>
+      {% for u in students %}
+        <option value="{{ u.id }}">{{ u.display_name }} ({{ u.email }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Khóa học *
+    <select name="course_id" required>
+      <option value="">— Chọn khóa học —</option>
+      {% for c in courses %}
+        <option value="{{ c.id }}">{{ c.title }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Điểm cuối khóa *
+    <input type="number" name="final_score" step="0.1" min="0" max="10" value="8" required>
+  </label>
+  <button type="submit" class="btn">Cấp chứng chỉ</button>
+</form>
+
+{% if certificates %}
+  <table class="table mt">
+    <thead><tr><th>Chứng chỉ</th><th>Học viên</th><th>Khóa học</th><th>Điểm</th><th>Ngày cấp</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for cert, user, course in certificates %}
+        <tr>
+          <td class="muted small"><code>{{ cert.code }}</code></td>
+          <td><a href="{{ url_for('admin.user_detail', user_id=user.id) }}">{{ user.display_name }}</a></td>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ cert.final_score if cert.final_score is not none else '—' }}</td>
+          <td class="muted small">{{ cert.issued_at.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.certificate_revoke', cert_id=cert.id) }}" class="inline" onsubmit="return confirm('Thu hồi chứng chỉ này?');">
+              <button type="submit" class="link danger">Thu hồi</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có chứng chỉ nào.') }}
+{% endif %}
+{% endblock %}

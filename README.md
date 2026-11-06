@@ -1,58 +1,88 @@
 # miniLMS
 
-Hệ thống quản lý học tập (LMS) viết bằng Python + Flask. Repo gồm hai phần chạy độc lập:
+Hệ thống quản lý học tập (LMS) — **Flask + SQLAlchemy + PostgreSQL**.
+
+Repo gồm hai phần:
 
 | Phần | Entrypoint | Dữ liệu | Dùng cho |
 | --- | --- | --- | --- |
-| API `app/` | `flask --app app run` | in-memory từ `seed.json` | Bộ test A1–A19 của đề bài (không dùng DB) |
-| Giao diện web `web/` | `flask --app webapp run` | SQLite qua SQLAlchemy | Trang chủ + trang tài khoản (homepage / account) |
+| Giao diện web `web/` (FE + BE) | `webapp.py` | PostgreSQL | Toàn bộ tính năng LMS |
+| API chấm thi `app/` | `flask --app app run` | in-memory từ `seed.json` | Bộ test A1–A19 của đề bài |
 
-## Cài đặt
+## Chạy nhanh
 
-```bash
-uv sync            # tạo .venv và cài đúng phiên bản trong uv.lock
-cp .env.example .env   # rồi sửa JWT_SECRET (bắt buộc, >= 32 ký tự)
+Bấm đúp **`run.bat`**. Script sẽ:
+
+1. Khởi động PostgreSQL nếu chưa chạy.
+2. Kiểm tra `.venv` + cài thiếu thư viện.
+3. Chạy migration (idempotent).
+4. Mở web tại <http://127.0.0.1:8888> và tự bật trình duyệt.
+
+Dừng web: `Ctrl+C` trong cửa sổ đó (PostgreSQL vẫn chạy).
+
+## Cấu hình
+
+Sao chép `.env.example` → `.env` rồi sửa:
+
+```env
+JWT_SECRET=...                                  # bắt buộc, >= 32 ký tự
+DATABASE_URL=postgresql+psycopg://lms_dev:lms_dev_2026@127.0.0.1:5432/lms_dev
+UPLOAD_DIR=instance/uploads
+MAIL_DIR=instance/mail
 ```
 
-`pip install -r requirements.txt` cũng dùng được nếu không có uv.
+- PostgreSQL mặc định: DB `lms_dev`, user `lms_dev` / `lms_dev_2026` (chỉ dùng cho dev).
+- Lần chạy đầu tự tạo bảng và nạp `seed.json`; các lần sau giữ nguyên dữ liệu.
+- Email ở chế độ dev được ghi thành tệp `.eml` trong `instance/mail/`.
 
-## Chạy giao diện web
+## Tài khoản demo
 
-```bash
-flask --app webapp run          # http://127.0.0.1:5000
-```
+Mật khẩu chung: `Lms@2026`
 
-- DB mặc định: `instance/lms.db` (SQLite, đã gitignore). Đổi bằng biến `DATABASE_URL`.
-- Lần chạy đầu tự tạo bảng và nạp dữ liệu từ `seed.json`; các lần sau giữ nguyên dữ liệu.
-- Mật khẩu demo của mọi tài khoản: `Lms@2026`.
+| Vai trò | Email |
+| --- | --- |
+| Quản trị viên | `admin@lms.test` |
+| Giảng viên | `an.gv@lms.test`, `binh.gv@lms.test` |
+| Sinh viên | `chi.sv@lms.test`, `dung.sv@lms.test`, … |
 
-| Trang | Đường dẫn | Vai trò |
-| --- | --- | --- |
-| Trang chủ (danh sách môn, số liệu) | `/` | cả 4 vai trò, kể cả khách |
-| Đăng nhập | `/login` | — |
-| Trang tài khoản (hồ sơ + điểm/môn dạy) | `/account` | ADMIN, TEACHER, STUDENT |
+## Tính năng chính
 
-### 4 vai trò
+- Tài khoản: đăng ký, đăng nhập/out, quên mật khẩu qua email có hạn, đổi mật khẩu.
+- Hồ sơ: cập nhật thông tin, ảnh đại diện, xem hồ sơ thành viên.
+- Khoá học: tra cứu/tìm kiếm/lọc theo GV, GV tạo–sửa, ghi danh bằng mã, GV thêm SV.
+- Bài tập: nộp văn bản + tệp, chặn nộp sau hạn, chấm điểm + nhận xét.
+- Quiz: giới hạn lượt, cưỡng chế thời gian, chấm tự động phía server.
+- Diễn đàn: đăng chủ đề/bình luận, tự sửa–xoá nội dung của mình.
+- Thông báo: GV gửi cả lớp (lưu DB + email).
+- Quản trị: khoá user, đổi vai trò, quản lý khoá học, **nhật ký hoạt động**.
+- REST API + OpenAPI: `/api/*`, `/api/docs`.
 
-`ADMIN` · `TEACHER` · `STUDENT` · `GUEST` (khách chưa đăng nhập).
+## Defensive pattern #3 — Optimistic Locking (sửa điểm)
 
-Giá trị `INSTRUCTOR` trong `seed.json` (bản API chấm thi) được quy đổi thành
-`TEACHER` khi nạp vào DB — xem `web/database.py:normalize_role`.
+Sửa điểm dùng cột `version` trên `submissions` / `quiz_attempts`. Client gửi
+kèm version đã đọc; lệch version trả **409 Conflict** và không ghi đè.
 
-## Chạy API bản thi
-
-```bash
-flask --app app run
-```
-
-Endpoint: `POST /auth/login`, `GET /me`, `GET /courses/<id>/grades`,
-`PUT /courses/<id>/grades/<student_id>` (xem `de-bai.pdf`).
+- Service: `web/grade_service.py`
+- Bản trước khi sửa: `docs/patterns/sua_diem_truoc_khi_sua.py`
+- Bằng chứng before/after: `docs/patterns/evidence.txt`
+- Báo cáo kiểm thử: `docs/Bao_cao_kiem_thu_sua_diem.docx` / `.pdf`
+- Hướng dẫn PoC bằng Burp Suite: `docs/Huong_dan_PoC_Burp_sua_diem.docx` / `.pdf`
 
 ## Kiểm tra chất lượng
 
 ```bash
-uv run pytest          # 38 test
-uv run ruff check .    # lint
-uv run ruff format --check .
-uv run mypy            # strict: main.py, app/, web/, webapp.py
+.venv\Scripts\python.exe -m pytest -q          # 133 test
+.venv\Scripts\python.exe tools\verify_db.py    # đếm bản ghi trong PostgreSQL
+.venv\Scripts\python.exe tools\e2e_check.py    # 28 bước kiểm thử end-to-end
+```
+
+## Cấu trúc
+
+```
+app/            API chấm thi (in-memory)
+web/            giao diện web: models, database, auth, mailer, storage, audit, blueprints/
+tests/          pytest
+tools/          migrate.py, verify_db.py, e2e_check.py
+docs/           đặc tả đối chiếu + danh sách tính năng đã bổ sung
+run.bat         khởi động PostgreSQL + web + trình duyệt
 ```

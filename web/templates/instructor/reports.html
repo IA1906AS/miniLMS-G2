@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Báo cáo: {{ course.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.courses') }}">Giảng dạy</a> / {{ course.title }} / Báo cáo
+</nav>
+
+<h1>Báo cáo khoá {{ course.title }}</h1>
+
+<div class="actions mb" style="margin-bottom: 1rem;">
+  <a class="btn" href="{{ url_for('instructor.course_reports_export', course_id=course.id) }}">Xuất báo cáo khóa học (CSV)</a>
+  <a class="btn ghost" href="{{ url_for('instructor.reports_export') }}">Xuất báo cáo tổng hợp (CSV)</a>
+</div>
+
+<section class="grid three mt">
+  <article class="card stat-card">
+    <span class="stat-num">{{ total }}</span>
+    <span class="muted">học viên</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ completed }}</span>
+    <span class="muted">hoàn thành 100%</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ avg_percent }}%</span>
+    <span class="muted">tiến độ trung bình</span>
+  </article>
+</section>
+
+{% if quiz_scores %}
+  <section class="card mt">
+    <h2>Kết quả bài kiểm tra</h2>
+    <table class="table">
+      <thead><tr><th>Bài kiểm tra</th><th>Lượt nộp</th><th>Điểm TB</th><th>Tỷ lệ đạt</th></tr></thead>
+      <tbody>
+        {% for row in quiz_scores %}
+          <tr>
+            <td>{{ row.quiz.title }}</td>
+            <td>{{ row.attempts }}</td>
+            <td>{{ row.average }}/10</td>
+            <td>{{ row.pass_rate }}%</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+
+<section class="card mt">
+  <h2>Tiến độ từng học viên</h2>
+  {% if rows %}
+    <table class="table">
+      <thead><tr><th>Học viên</th><th>Tiến độ</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.student.display_name }}</td>
+            <td>{{ m.progress(row.percent, row.done, row.total) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có dữ liệu.') }}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ topic.title }} — {{ course.title }}{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('student.forum_index') }}">Diễn đàn</a> /
+  <a href="{{ url_for('student.forum_course', course_id=course_id) }}">{{ course.title }}</a> /
+  {{ topic.title }}
+</nav>
+
+<h1>{{ topic.title }}</h1>
+<p class="muted small">
+  Tạo bởi
+  <a href="{{ url_for('main.member_profile', user_id=topic.author_id) }}">{{ posts[0].author.display_name if posts else '—' }}</a>
+  lúc {{ topic.created_at.strftime('%d/%m/%Y %H:%M') }}
+  {% if topic.pinned %}<span class="pill free">Ghim</span>{% endif %}
+  {% if topic.locked %}<span class="pill draft">Đã khoá</span>{% endif %}
+</p>
+
+{% if current_user and current_user.id == topic.author_id and not topic.locked %}
+  <div class="row-actions">
+    <form method="post" action="{{ url_for('student.forum_topic_delete', course_id=course_id, topic_id=topic.id) }}" class="inline"
+          onsubmit="return confirm('Xoá chủ đề này?');">
+      <button type="submit" class="link danger">Xoá chủ đề</button>
+    </form>
+  </div>
+  <details class="card mt">
+    <summary>Sửa chủ đề</summary>
+    <form method="post" action="{{ url_for('student.forum_topic_edit', course_id=course_id, topic_id=topic.id) }}" class="form-card">
+      <label>Tiêu đề
+        <input type="text" name="title" value="{{ topic.title }}" required>
+      </label>
+      <label>Nội dung
+        <textarea name="content" rows="4" required>{{ topic.body }}</textarea>
+      </label>
+      <button type="submit" class="btn small">Lưu</button>
+    </form>
+  </details>
+{% endif %}
+
+{% for item in posts %}
+  <article class="card mt">
+    <p class="muted small">
+      <a href="{{ url_for('main.member_profile', user_id=item.post.author_id) }}">{{ item.author.display_name }}</a>
+      · {{ item.post.created_at.strftime('%d/%m/%Y %H:%M') }}
+    </p>
+    <div class="prose">{{ item.post.body }}</div>
+
+    {% if current_user and current_user.id == item.post.author_id %}
+      <div class="row-actions mt">
+        <form method="post" action="{{ url_for('student.forum_post_delete', course_id=course_id, post_id=item.post.id) }}" class="inline"
+              onsubmit="return confirm('Xoá bình luận này?');">
+          <button type="submit" class="link danger">Xoá</button>
+        </form>
+      </div>
+      <details>
+        <summary>Sửa bình luận</summary>
+        <form method="post" action="{{ url_for('student.forum_post_edit', course_id=course_id, post_id=item.post.id) }}" class="form-card">
+          <textarea name="content" rows="3" required>{{ item.post.body }}</textarea>
+          <button type="submit" class="btn small">Lưu</button>
+        </form>
+      </details>
+    {% endif %}
+  </article>
+{% endfor %}
+
+{% if not topic.locked %}
+  <section class="card mt">
+    <h3>Trả lời</h3>
+    <form method="post" action="{{ url_for('student.forum_reply', course_id=course_id, topic_id=topic.id) }}" class="form-card">
+      <label>Nội dung *
+        <textarea name="content" rows="4" required></textarea>
+      </label>
+      <button type="submit" class="btn">Gửi phản hồi</button>
+    </form>
+  </section>
+{% else %}
+  <p class="muted">Chủ đề này đã bị khoá, không thể trả lời.</p>
+{% endif %}
+{% endblock %}

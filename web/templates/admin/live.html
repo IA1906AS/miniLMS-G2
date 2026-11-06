@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Live Session — Admin{% endblock %}
+{% block content %}
+<h1>Quản lý buổi học trực tuyến toàn hệ thống</h2>
+
+{% if sessions %}
+  <table class="table">
+    <thead><tr><th>Buổi học</th><th>Khóa học</th><th>Giảng viên</th><th>Link</th><th>Bắt đầu</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for session, course, instructor in sessions %}
+        <tr>
+          <td>{{ session.title }}</td>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ instructor.display_name }}</td>
+          <td><a href="{{ session.meeting_url }}" target="_blank" rel="noopener">{{ session.meeting_url }}</a></td>
+          <td class="muted small">{{ session.start_at.strftime('%d/%m/%Y %H:%M') if session.start_at else '—' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.live_delete', session_id=session.id) }}" class="inline" onsubmit="return confirm('Xóa buổi học này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có buổi học nào.') }}
+{% endif %}
+{% endblock %}

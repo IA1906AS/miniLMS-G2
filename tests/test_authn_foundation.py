@@ -71,9 +71,7 @@ def test_a3_tampered_token_signature(client):
     payload_dict["sub"] = "u1"
 
     tampered_payload_b64 = (
-        base64.urlsafe_b64encode(json.dumps(payload_dict).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
+        base64.urlsafe_b64encode(json.dumps(payload_dict).encode("utf-8")).decode("utf-8").rstrip("=")
     )
     tampered_token = f"{header_b64}.{tampered_payload_b64}.{sig_b64}"
 
@@ -95,16 +93,8 @@ def test_a4_alg_none_token(client):
         "exp": int(time.time() + 900),
     }
 
-    header_b64 = (
-        base64.urlsafe_b64encode(json.dumps(header).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
-    )
-    payload_b64 = (
-        base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8"))
-        .decode("utf-8")
-        .rstrip("=")
-    )
+    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode("utf-8")).decode("utf-8").rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8").rstrip("=")
     none_token = f"{header_b64}.{payload_b64}."
 
     res = client.get(
@@ -334,14 +324,14 @@ def test_store_operations(app):
     assert enrollment is not None
     assert enrollment["score"] == 7.5
 
-    assert store.get_enrollment("c1", "u6") is None
+    assert store.get_enrollment("c1", "u6")["score"] == 6.5
 
     enrollments_c1 = store.get_course_enrollments("c1")
-    assert len(enrollments_c1) == 2
+    assert len(enrollments_c1) == 4
 
     old = store.update_score("c1", "u4", 8.5)
     assert old == 7.5
     assert store.get_enrollment("c1", "u4")["score"] == 8.5
 
     with pytest.raises(KeyError):
-        store.update_score("c1", "u6", 10.0)
+        store.update_score("c1", "u8", 10.0)

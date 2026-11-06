@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ assignment.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('main.course_detail', course_id=course.id) }}">{{ course.title }}</a> / {{ assignment.title }}
+</nav>
+
+{% if conflict %}
+  <div class="flash error">⚠ {{ conflict }}</div>
+{% endif %}
+
+<section class="card">
+  <h1>{{ assignment.title }}</h1>
+  <p class="muted">{{ assignment.description or 'Chưa có mô tả.' }}</p>
+  <ul class="meta">
+    <li>Điểm tối đa: {{ assignment.max_score }}</li>
+    <li>{% if assignment.due_at %}Hạn nộp: {{ assignment.due_at.strftime('%d/%m/%Y %H:%M') }}{% else %}Không đặt hạn{% endif %}</li>
+  </ul>
+</section>
+
+{% if enrolled %}
+  <section class="card mt">
+    <h2>Bài làm của bạn</h2>
+    {% if submission %}
+      <p class="muted small">Nộp lúc {{ submission.submitted_at.strftime('%d/%m/%Y %H:%M') }}</p>
+      {% if submission.file_path %}
+        <p><a class="btn ghost small" href="{{ url_for('files.download_submission', submission_id=submission.id) }}">📎 Tệp bài nộp</a></p>
+      {% endif %}
+      {% if submission.score is not none %}
+        <p class="ok">Điểm: <strong>{{ submission.score }}/{{ assignment.max_score }}</strong></p>
+        {% if submission.feedback %}<p class="muted">Nhận xét: {{ submission.feedback }}</p>{% endif %}
+      {% else %}
+        <p class="muted">Chưa được chấm điểm.</p>
+      {% endif %}
+      <div class="prose">{{ submission.text or '' }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('quiz.assignment_submit', assignment_id=assignment.id) }}"
+          enctype="multipart/form-data" class="form-card mt">
+      <label>Nội dung bài làm
+        <textarea name="text" rows="6">{{ submission.text if submission else '' }}</textarea>
+      </label>
+      <label>Tệp đính kèm (PDF/DOC/ZIP, tối đa 20MB)
+        <input type="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.txt,.py,.js,.sql">
+      </label>
+      <button type="submit" class="btn">{{ 'Cập nhật bài nộp' if submission else 'Nộp bài' }}</button>
+    </form>
+  </section>
+{% endif %}
+
+{% if staff %}
+  <section class="card mt">
+    <h2>Bài nộp của học viên</h2>
+    {% if submissions %}
+      <table class="table">
+        <thead><tr><th>Học viên</th><th>Nộp lúc</th><th>Nội dung</th><th>Tệp</th><th>Điểm</th><th>Chấm</th></tr></thead>
+        <tbody>
+          {% for row in submissions %}
+            <tr>
+              <td>{{ row.student.display_name }}</td>
+              <td>{{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td class="muted small clamp">{{ row.submission.text or '—' }}</td>
+              <td>
+                {% if row.submission.file_path %}
+                  <a href="{{ url_for('files.download_submission', submission_id=row.submission.id) }}">📎 Tải</a>
+                {% else %}—{% endif %}
+              </td>
+              <td>{{ row.submission.score if row.submission.score is not none else '—' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('quiz.assignment_grade', assignment_id=assignment.id, submission_id=row.submission.id) }}" class="grade-form">
+                  <input type="hidden" name="version" value="{{ row.submission.version }}">
+                  <input type="number" name="score" step="0.5" min="0" max="{{ assignment.max_score }}" value="{{ row.submission.score if row.submission.score is not none else '' }}" required>
+                  <input type="text" name="feedback" placeholder="Nhận xét" value="{{ row.submission.feedback or '' }}">
+                  <button type="submit" class="btn small">Lưu</button>
+                  <span class="muted small">v{{ row.submission.version }}</span>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {{ m.empty('Chưa có học viên nào nộp bài.') }}
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Hồ sơ — miniLMS{% endblock %}
+{% block content %}
+<h1>Hồ sơ của bạn</h1>
+
+<div class="card form-card">
+  <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+    {% if user.avatar_path %}
+      <img class="avatar-img" src="{{ url_for('files.serve_avatar', user_id=user.id) }}" alt="avatar" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+    {% else %}
+      <div class="avatar" style="width: 80px; height: 80px; font-size: 2rem;">{{ user.display_name[0]|upper }}</div>
+    {% endif %}
+    <div>
+      <h2>{{ user.display_name }}</h2>
+      <p class="muted small">{{ user.email }}</p>
+      <span class="badge role-{{ user.role|lower }}">{{ role_labels.get(user.role, user.role) }}</span>
+    </div>
+  </div>
+
+  <div class="meta">
+    <li><strong>Họ tên:</strong> {{ user.full_name or '—' }}</li>
+    <li><strong>Giới thiệu:</strong> {{ user.bio or '—' }}</li>
+  </div>
+
+  <div class="row-actions mt">
+    <a class="btn" href="{{ url_for('student.profile_edit') }}">Chỉnh sửa hồ sơ</a>
+    <a class="btn ghost" href="{{ url_for('student.profile_password') }}">Đổi mật khẩu</a>
+  </div>
+
+  <form method="post" action="{{ url_for('files.upload_avatar') }}" enctype="multipart/form-data" class="mt">
+    <label>Ảnh đại diện mới (PNG/JPG, tối đa 2MB)
+      <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" required>
+    </label>
+    <button type="submit" class="btn small">Tải ảnh lên</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bài kiểm tra — miniLMS{% endblock %}
+{% block content %}
+<h1>Bài kiểm tra</h1>
+{% if rows %}
+  <table class="table">
+    <thead><tr><th>Bài kiểm tra</th><th>Khoá học</th><th>Câu hỏi</th><th>Lượt nộp</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.quiz.title }}</td>
+          <td>{{ row.course.title if row.course else '—' }}</td>
+          <td>{{ row.questions }}</td>
+          <td>{{ row.attempts }}</td>
+          <td class="row-actions">
+            <a class="btn small ghost" href="{{ url_for('instructor.quiz_questions', quiz_id=row.quiz.id) }}">Câu hỏi</a>
+            <a class="btn small ghost" href="{{ url_for('quiz.intro', quiz_id=row.quiz.id) }}">Xem</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có bài kiểm tra nào.') }}
+{% endif %}
+{% endblock %}

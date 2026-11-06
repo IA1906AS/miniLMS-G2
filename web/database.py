@@ -1,7 +1,7 @@
-"""Lớp truy cập dữ liệu cho giao diện web LMS: SQLite + SQLAlchemy 2.x.
+"""Tầng dữ liệu: engine, session, seed demo.
 
-Tách khỏi ``app/`` (bản API chấm thi vẫn chạy in-memory theo yêu cầu đề bài).
-Dùng chung seed.json để dữ liệu hai bên giống nhau.
+Mô hình bảng nằm ở ``web.models``. Module này chỉ lo kết nối + nạp dữ liệu mẫu
+từ ``seed.json`` và mở rộng thêm dữ liệu để mọi trang trong spec có nội dung.
 """
 
 from __future__ import annotations
@@ -12,129 +12,73 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import (
-    Float,
-    ForeignKey,
-    String,
-    UniqueConstraint,
-    create_engine,
-    func,
-    select,
-)
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    Session,
-    mapped_column,
-    relationship,
-    sessionmaker,
-)
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.auth import hash_password
+from web.models import (
+    COURSE_PUBLISHED,
+    ROLE_ADMIN,
+    ROLE_ALIASES,
+    ROLE_GUEST,
+    ROLE_INSTRUCTOR,
+    ROLE_LABELS,
+    ROLE_STUDENT,
+    Assignment,
+    Badge,
+    Base,
+    Category,
+    Certificate,
+    Chapter,
+    Course,
+    Enrollment,
+    ForumPost,
+    ForumTopic,
+    Lesson,
+    LiveSession,
+    Notification,
+    Question,
+    Quiz,
+    QuizQuestion,
+    Tag,
+    User,
+    normalize_role,
+)
 
-ROLE_ADMIN = "ADMIN"
-ROLE_TEACHER = "TEACHER"
-ROLE_STUDENT = "STUDENT"
-ROLE_GUEST = "GUEST"
+#: Bí danh tương thích ngược cho code/test cũ dùng tên khác.
+ROLE_TEACHER = ROLE_INSTRUCTOR
 
-ROLE_LABELS = {
-    ROLE_ADMIN: "Quản trị viên",
-    ROLE_TEACHER: "Giảng viên",
-    ROLE_STUDENT: "Sinh viên",
-    ROLE_GUEST: "Khách",
-}
+__all__ = [
+    "DEFAULT_SEED",
+    "ROLE_ADMIN",
+    "ROLE_ALIASES",
+    "ROLE_GUEST",
+    "ROLE_INSTRUCTOR",
+    "ROLE_LABELS",
+    "ROLE_STUDENT",
+    "ROLE_TEACHER",
+    "Database",
+    "User",
+    "get_db",
+    "normalize_role",
+]
 
-# Bản API chấm thi dùng "INSTRUCTOR" (theo seed.json của đề bài), giao diện web
-# dùng "TEACHER". Quy đổi tại biên để hai bên không lệch nhau.
-ROLE_ALIASES = {"INSTRUCTOR": ROLE_TEACHER, "TEACHER": ROLE_TEACHER}
-
-
-def normalize_role(role: str | None) -> str:
-    """Đưa mọi biến thể vai trò về 4 giá trị: ADMIN | TEACHER | STUDENT | GUEST."""
-    if not role:
-        return ROLE_GUEST
-    key = str(role).strip().upper()
-    key = ROLE_ALIASES.get(key, key)
-    return key if key in ROLE_LABELS else ROLE_GUEST
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20))
-
-    enrollments: Mapped[list[Enrollment]] = relationship(
-        back_populates="student",
-        foreign_keys="Enrollment.student_id",
-        cascade="all, delete-orphan",
-    )
-    teaching: Mapped[list[Course]] = relationship(back_populates="instructor")
-
-    @property
-    def role_label(self) -> str:
-        return ROLE_LABELS[normalize_role(self.role)]
-
-    @property
-    def initials(self) -> str:
-        return self.email.split("@", 1)[0][:2].upper()
-
-
-class Course(Base):
-    __tablename__ = "courses"
-
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)
-    title: Mapped[str] = mapped_column(String(255))
-    instructor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-
-    instructor: Mapped[User] = relationship(
-        back_populates="teaching", foreign_keys=[instructor_id]
-    )
-    enrollments: Mapped[list[Enrollment]] = relationship(
-        back_populates="course", cascade="all, delete-orphan"
-    )
-
-
-class Enrollment(Base):
-    __tablename__ = "enrollments"
-    __table_args__ = (
-        UniqueConstraint("course_id", "student_id", name="uq_enrollment"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"))
-    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    score: Mapped[float] = mapped_column(Float, default=0.0)
-
-    course: Mapped[Course] = relationship(
-        back_populates="enrollments", foreign_keys=[course_id]
-    )
-    student: Mapped[User] = relationship(
-        back_populates="enrollments", foreign_keys=[student_id]
-    )
+DEFAULT_SEED = "seed.json"
 
 
 def _make_engine(url: str) -> Engine:
     if not url.startswith("sqlite"):
         return create_engine(url, future=True)
-
     connect_args = {"check_same_thread": False}
     if url in {"sqlite://", "sqlite:///:memory:"}:
-        # In-memory + StaticPool: nhiều session dùng lại đúng một kết nối.
         return create_engine(url, connect_args=connect_args, poolclass=StaticPool)
     return create_engine(url, connect_args=connect_args)
 
 
 class Database:
-    """Bọc engine + session factory, kèm seed từ seed.json."""
+    """Bọc engine + session factory, kèm seed dữ liệu demo."""
 
     def __init__(self, url: str) -> None:
         self.url = url
@@ -160,8 +104,7 @@ class Database:
         with self.session() as sess:
             return not sess.scalar(select(func.count()).select_from(User))
 
-    def seed_if_empty(self, seed_path: str | Path) -> bool:
-        """Nạp seed.json khi bảng users còn trống. Trả True nếu có nạp."""
+    def seed_if_empty(self, seed_path: str | Path = DEFAULT_SEED) -> bool:
         if not self.is_empty():
             return False
 
@@ -171,34 +114,363 @@ class Database:
         data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
 
         with self.session() as sess:
-            for user in data.get("users", []):
-                sess.add(
-                    User(
-                        id=user["id"],
-                        email=user["email"].strip().lower(),
-                        role=normalize_role(user["role"]),
-                        password_hash=hash_password(user["password"]),
-                    )
-                )
-            sess.flush()
-            for course in data.get("courses", []):
-                sess.add(
-                    Course(
-                        id=course["id"],
-                        title=course["title"],
-                        instructor_id=course["instructorId"],
-                    )
-                )
-            sess.flush()
-            for row in data.get("enrollments", []):
-                sess.add(
-                    Enrollment(
-                        course_id=row["courseId"],
-                        student_id=row["studentId"],
-                        score=float(row["score"]),
-                    )
-                )
+            _seed_users(sess, data)
+            _seed_taxonomy(sess, data)
+            _seed_courses(sess, data)
+            _seed_enrollments(sess, data)
+            _seed_content(sess, data)
+            _seed_assessments(sess, data)
+            _seed_community(sess)
+            _seed_rewards(sess)
         return True
+
+
+# ---------------------------------------------------------------------------
+# Seed
+# ---------------------------------------------------------------------------
+
+
+def _seed_users(sess: Session, data: dict[str, Any]) -> None:
+    for user in data.get("users", []):
+        sess.add(
+            User(
+                id=user["id"],
+                email=user["email"].strip().lower(),
+                role=normalize_role(user["role"]),
+                password_hash=hash_password(user["password"]),
+                full_name=user.get("full_name") or user.get("fullName") or user["email"].split("@")[0],
+                bio=("Giảng viên bộ môn." if normalize_role(user["role"]) == ROLE_INSTRUCTOR else None),
+            )
+        )
+    sess.flush()
+
+
+def _seed_taxonomy(sess: Session, data: dict[str, Any] | None = None) -> None:
+    import re
+
+    def make_slug(text: str) -> str:
+        text = text.lower().strip()
+        text = re.sub(r"[àáạảãâầấậẩẫăằắặẳẵ]", "a", text)
+        text = re.sub(r"[èéẹẻẽêềếệểễ]", "e", text)
+        text = re.sub(r"[ìíịỉĩ]", "i", text)
+        text = re.sub(r"[òóọỏõôồốộổỗơờớợởỡ]", "o", text)
+        text = re.sub(r"[ùúụủũưừứựửữ]", "u", text)
+        text = re.sub(r"[ỳýỵỷỹ]", "y", text)
+        text = re.sub(r"[đ]", "d", text)
+        text = re.sub(r"[^a-z0-9]+", "-", text)
+        return text.strip("-")
+
+    if data and "categories" in data:
+        for cat in data["categories"]:
+            slug = cat.get("slug") or make_slug(cat["name"])
+            sess.add(Category(id=cat["id"], name=cat["name"], slug=slug))
+    else:
+        for name, slug in (
+            ("Công nghệ thông tin", "cntt"),
+            ("Khoa học dữ liệu", "khdl"),
+            ("Thiết kế", "thiet-ke"),
+        ):
+            sess.add(Category(name=name, slug=slug))
+    if data and "tags" in data:
+        for tag in data["tags"]:
+            sess.add(Tag(name=tag))
+    else:
+        for tag in ("web", "python", "sql", "cơ bản", "nâng cao"):
+            sess.add(Tag(name=tag))
+    sess.flush()
+
+
+def _seed_courses(sess: Session, data: dict[str, Any]) -> None:
+    for course in data.get("courses", []):
+        cid = course["id"]
+        sess.add(
+            Course(
+                id=cid,
+                title=course["title"],
+                instructor_id=course["instructorId"],
+                slug=cid,
+                description=course.get("description"),
+                price=course.get("price", 0),
+                status=course.get("status", COURSE_PUBLISHED),
+                category_id=course.get("categoryId"),
+                leaderboard_public=True,
+                enroll_code=course.get("enrollCode") or f"{cid.upper()}-2026",
+            )
+        )
+    sess.flush()
+
+
+def _seed_enrollments(sess: Session, data: dict[str, Any]) -> None:
+    for row in data.get("enrollments", []):
+        sess.add(
+            Enrollment(
+                course_id=row["courseId"],
+                student_id=row["studentId"],
+                status="ACTIVE",
+            )
+        )
+    sess.flush()
+
+
+def _seed_content(sess: Session, data: dict[str, Any] | None = None) -> None:
+    """Seed chapters and lessons from seed.json if available, else generate defaults."""
+    if data and "chapters" in data and "lessons" in data:
+        for chapter in data["chapters"]:
+            sess.add(
+                Chapter(
+                    id=chapter["id"],
+                    course_id=chapter["courseId"],
+                    title=chapter["title"],
+                    position=chapter.get("position", 1),
+                )
+            )
+        for lesson in data["lessons"]:
+            sess.add(
+                Lesson(
+                    id=lesson["id"],
+                    chapter_id=lesson["chapterId"],
+                    title=lesson["title"],
+                    kind=lesson.get("kind", "text"),
+                    position=lesson.get("position", 1),
+                    duration_min=lesson.get("duration_min", 0),
+                    content=lesson.get("content"),
+                    media_url=lesson.get("media_url"),
+                    is_free_preview=lesson.get("is_free_preview", False),
+                )
+            )
+    else:
+        # Default content generation
+        for course in sess.scalars(select(Course).order_by(Course.id)).all():
+            for chapter_index, chapter_title in enumerate(("Nhập môn", "Thực hành"), start=1):
+                chapter = Chapter(
+                    course_id=course.id,
+                    title=f"Chương {chapter_index}: {chapter_title}",
+                    position=chapter_index,
+                )
+            sess.add(chapter)
+            sess.flush()
+
+            lessons = [
+                Lesson(
+                    chapter_id=chapter.id,
+                    title=f"Bài {chapter_index}.1 — Giới thiệu",
+                    kind="text",
+                    content="Nội dung bài giới thiệu (soạn thảo văn bản).",
+                    duration_min=10,
+                    position=1,
+                    is_free_preview=(chapter_index == 1),
+                ),
+                Lesson(
+                    chapter_id=chapter.id,
+                    title=f"Bài {chapter_index}.2 — Video bài giảng",
+                    kind="video",
+                    media_url="https://example.com/lecture.mp4",
+                    duration_min=25,
+                    position=2,
+                ),
+                Lesson(
+                    chapter_id=chapter.id,
+                    title=f"Bài {chapter_index}.3 — Tài liệu PDF",
+                    kind="pdf",
+                    media_url="https://example.com/slides.pdf",
+                    duration_min=15,
+                    position=3,
+                ),
+            ]
+            sess.add_all(lessons)
+            sess.flush()
+
+            sess.add(
+                Question(
+                    course_id=course.id,
+                    created_by=course.instructor_id,
+                    kind="MCQ",
+                    prompt="HTTP status nào biểu thị Forbidden?",
+                    options=["200", "403", "404", "500"],
+                    answer={"index": 1},
+                    points=2.0,
+                )
+            )
+    sess.flush()
+
+
+def _seed_assessments(sess: Session, data: dict[str, Any] | None = None) -> None:
+    if data and "quizzes" in data and "questions" in data and "assignments" in data:
+        for quiz in data["quizzes"]:
+            sess.add(
+                Quiz(
+                    id=quiz["id"],
+                    course_id=quiz["courseId"],
+                    title=quiz["title"],
+                    description=quiz.get("description"),
+                    time_limit_min=quiz.get("time_limit_min", 15),
+                    pass_score=quiz.get("pass_score", 5.0),
+                    max_attempts=quiz.get("max_attempts", 3),
+                    show_answers=quiz.get("show_answers", True),
+                    status=quiz.get("status", "PUBLISHED"),
+                )
+            )
+        sess.flush()
+
+        for question in data["questions"]:
+            sess.add(
+                Question(
+                    id=question["id"],
+                    course_id=question.get("courseId"),
+                    created_by=question.get("createdBy") or "u2",
+                    kind=question.get("kind", "MCQ"),
+                    prompt=question["prompt"],
+                    options=question.get("options", []),
+                    answer=question.get("answer", {"index": 0}),
+                    points=question.get("points", 1),
+                )
+            )
+            # Link question to quiz via QuizQuestion
+            quiz_id = question.get("quizId")
+            if quiz_id:
+                sess.add(QuizQuestion(quiz_id=quiz_id, question_id=question["id"], position=1))
+
+        for assignment in data["assignments"]:
+            due_at = assignment.get("due_at")
+            if isinstance(due_at, str):
+                from datetime import datetime
+
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
+                    try:
+                        due_at = datetime.strptime(due_at, fmt)
+                        break
+                    except ValueError:
+                        continue
+            else:
+                due_at = None
+
+            sess.add(
+                Assignment(
+                    id=assignment["id"],
+                    course_id=assignment["courseId"],
+                    title=assignment["title"],
+                    description=assignment.get("description"),
+                    max_score=assignment.get("max_score", 10),
+                    due_at=due_at,
+                )
+            )
+    else:
+        # Default assessments
+        for index, course in enumerate(sess.scalars(select(Course).order_by(Course.id)).all(), start=1):
+            quiz = Quiz(
+                course_id=course.id,
+                title=f"Kiểm tra chương {index}",
+                description="Bài kiểm tra trắc nghiệm cuối chương.",
+                time_limit_min=15,
+                pass_score=5.0,
+                max_attempts=3,
+                show_answers=True,
+                status="PUBLISHED",
+            )
+            sess.add(quiz)
+            sess.flush()
+
+            question = sess.scalars(select(Question).where(Question.course_id == course.id)).first()
+            if question is not None:
+                sess.add(QuizQuestion(quiz_id=quiz.id, question_id=question.id, position=1))
+
+            sess.add(
+                Assignment(
+                    course_id=course.id,
+                    title=f"Bài tập chương {index}",
+                    description="Nộp bài làm dạng văn bản hoặc tệp đính kèm.",
+                    max_score=10.0,
+                )
+            )
+    sess.flush()
+
+
+def _seed_community(sess: Session) -> None:
+    student = sess.scalars(select(User).where(User.role == ROLE_STUDENT)).first()
+    instructor = sess.scalars(select(User).where(User.role == ROLE_INSTRUCTOR)).first()
+    if student is None or instructor is None:
+        return
+
+    for course in sess.scalars(select(Course).order_by(Course.id)).all():
+        topic = ForumTopic(
+            course_id=course.id,
+            author_id=instructor.id,
+            title=f"Hỏi đáp khoá {course.title}",
+            body="Mọi thắc mắc về bài giảng, bài tập đăng tại đây.",
+            pinned=True,
+        )
+        sess.add(topic)
+        sess.flush()
+        sess.add(
+            ForumPost(
+                topic_id=topic.id,
+                author_id=student.id,
+                body="Em chào thầy/cô, em đã xem xong chương 1 ạ.",
+            )
+        )
+        sess.add(
+            LiveSession(
+                course_id=course.id,
+                title=f"Live ôn tập {course.title}",
+                meeting_url="https://meet.example.com/lms",
+                created_by=instructor.id,
+            )
+        )
+        sess.add(
+            Notification(
+                user_id=student.id,
+                kind="INFO",
+                title=f"Khoá {course.title} đã cập nhật nội dung",
+                body="Chương 2 đã được mở.",
+                link=f"/my-courses/{course.id}/learn",
+            )
+        )
+    sess.flush()
+
+
+def _seed_rewards(sess: Session) -> None:
+    sess.add_all(
+        [
+            Badge(
+                code="first_lesson",
+                name="Bước đầu tiên",
+                description="Hoàn thành bài học đầu tiên",
+                icon="🌱",
+                rule={"type": "LESSON_COMPLETED", "count": 1},
+            ),
+            Badge(
+                code="quiz_master",
+                name="Cao thủ quiz",
+                description="Đạt một bài kiểm tra",
+                icon="🎯",
+                rule={"type": "QUIZ_PASSED", "count": 1},
+            ),
+            Badge(
+                code="streak_3",
+                name="Chuỗi 3 ngày",
+                description="Học 3 ngày liên tiếp",
+                icon="🔥",
+                rule={"type": "STREAK", "count": 3},
+            ),
+        ]
+    )
+    sess.flush()
+
+    for enrollment in sess.scalars(select(Enrollment)).all():
+        sess.add(
+            Certificate(
+                code=f"CERT-{enrollment.course_id.upper()}-{enrollment.student_id.upper()}",
+                user_id=enrollment.student_id,
+                course_id=enrollment.course_id,
+                final_score=8.0,
+            )
+        )
+    sess.flush()
+
+
+# ---------------------------------------------------------------------------
+# Truy cập DB từ request
+# ---------------------------------------------------------------------------
 
 
 def get_db() -> Database:
@@ -206,71 +478,3 @@ def get_db() -> Database:
 
     db: Database = current_app.extensions["lms_db"]
     return db
-
-
-def course_overview(sess: Session) -> list[dict[str, Any]]:
-    """Mọi môn học kèm giảng viên, sĩ số và điểm trung bình."""
-    rows = sess.execute(
-        select(
-            Course.id,
-            Course.title,
-            User.email,
-            User.id,
-            func.count(Enrollment.id),
-            func.avg(Enrollment.score),
-        )
-        .join(User, Course.instructor_id == User.id)
-        .outerjoin(Enrollment, Enrollment.course_id == Course.id)
-        .group_by(Course.id, Course.title, User.email, User.id)
-        .order_by(Course.id)
-    ).all()
-
-    return [
-        {
-            "id": row[0],
-            "title": row[1],
-            "instructor_email": row[2],
-            "instructor_id": row[3],
-            "students": row[4],
-            "avg_score": round(row[5], 2) if row[5] is not None else None,
-        }
-        for row in rows
-    ]
-
-
-def student_grades(sess: Session, student_id: str) -> list[dict[str, Any]]:
-    rows = sess.execute(
-        select(Course.id, Course.title, Enrollment.score, User.email)
-        .join(Enrollment, Enrollment.course_id == Course.id)
-        .join(User, Course.instructor_id == User.id)
-        .where(Enrollment.student_id == student_id)
-        .order_by(Course.id)
-    ).all()
-    return [
-        {"id": row[0], "title": row[1], "score": row[2], "instructor_email": row[3]}
-        for row in rows
-    ]
-
-
-def teaching_courses(sess: Session, instructor_id: str) -> list[dict[str, Any]]:
-    return [
-        card for card in course_overview(sess) if card["instructor_id"] == instructor_id
-    ]
-
-
-def platform_stats(sess: Session) -> dict[str, int]:
-    return {
-        "users": sess.scalar(select(func.count()).select_from(User)) or 0,
-        "students": sess.scalar(
-            select(func.count()).select_from(User).where(User.role == ROLE_STUDENT)
-        )
-        or 0,
-        "teachers": sess.scalar(
-            select(func.count())
-            .select_from(User)
-            .where(User.role.in_([ROLE_TEACHER, "INSTRUCTOR"]))
-        )
-        or 0,
-        "courses": sess.scalar(select(func.count()).select_from(Course)) or 0,
-        "enrollments": sess.scalar(select(func.count()).select_from(Enrollment)) or 0,
-    }

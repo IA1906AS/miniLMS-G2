@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Học viên: {{ course.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.courses') }}">Giảng dạy</a> / {{ course.title }} / Học viên
+</nav>
+
+<h1>Học viên khoá {{ course.title }}</h1>
+
+{% if course.enroll_code %}
+  <p class="muted">Mã ghi danh của khoá: <strong>{{ course.enroll_code }}</strong> (SV nhập mã này ở trang chủ)</p>
+{% endif %}
+
+{% if rows %}
+  <table class="table">
+    <thead><tr><th>Học viên</th><th>Email</th><th>Tiến độ</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.student.display_name }}</td>
+          <td class="muted small">{{ row.student.email }}</td>
+          <td>{{ m.progress(row.percent, row.done, row.total) }}</td>
+          <td><span class="pill {{ 'ok' if row.enrollment.status == 'ACTIVE' else 'draft' }}">{{ row.enrollment.status }}</span></td>
+          <td>
+            <form method="post" action="{{ url_for('instructor.student_remove', course_id=course.id, student_id=row.student.id) }}" class="inline"
+                  onsubmit="return confirm('Xoá sinh viên khỏi lớp?');">
+              <button type="submit" class="link danger">Xoá</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Khoá học chưa có học viên.') }}
+{% endif %}
+
+<section class="card mt">
+  <h3>Thêm sinh viên vào lớp</h3>
+  <form method="post" action="{{ url_for('instructor.student_add', course_id=course.id) }}" class="form-grid">
+    <label>Email sinh viên
+      <input type="email" name="email" placeholder="sinhvien@lms.test" required>
+    </label>
+    <button type="submit" class="btn small">+ Thêm</button>
+  </form>
+</section>
+{% endblock %}

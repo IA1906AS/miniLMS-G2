@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bảng điểm — miniLMS{% endblock %}
+{% block content %}
+<h1>Bảng điểm</h1>
+
+{% if rows %}
+  {% for row in rows %}
+    <section class="card mt">
+      <h3>{{ row.course.title }}</h3>
+
+      {% if row.quizzes %}
+        <p class="muted small">Điểm trung bình bài kiểm tra:</p>
+        <ul class="meta">
+          {% for q in row.quizzes %}
+            <li>{{ q.quiz.title }}: <strong>{{ q.average }}/10</strong></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if row.students %}
+        <table class="table">
+          <thead><tr><th>Học viên</th><th>Tiến độ</th></tr></thead>
+          <tbody>
+            {% for s in row.students %}
+              <tr>
+                <td>{{ s.student.display_name }}</td>
+                <td>{{ m.progress(s.percent, s.done, s.total) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ m.empty('Khoá học chưa có học viên.') }}
+      {% endif %}
+    </section>
+  {% endfor %}
+{% else %}
+  {{ m.empty('Bạn chưa phụ trách khoá học nào.') }}
+{% endif %}
+{% endblock %}

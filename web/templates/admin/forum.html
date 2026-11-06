@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Diễn đàn — Admin{% endblock %}
+{% block content %}
+<h1>Quản lý diễn đàn toàn hệ thống</h2>
+
+{% if topics %}
+  <table class="table">
+    <thead><tr><th>Chủ đề</th><th>Khóa học</th><th>Tác giả</th><th>Trả lời</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for topic, course, author in topics %}
+        <tr>
+          <td>
+            {% if topic.pinned %}<span class="pill free">Ghim</span>{% endif %}
+            {% if topic.locked %}<span class="pill draft">Khoá</span>{% endif %}
+            {{ topic.title }}
+          </td>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ author.display_name }}</td>
+          <td>{{ topic.posts|length }}</td>
+          <td>
+            {% if topic.pinned %}<span class="pill free">Ghim</span>{% endif %}
+            {% if topic.locked %}<span class="pill draft">Khoá</span>{% endif %}
+          </td>
+          <td class="muted small">{{ topic.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="row-actions">
+            <form method="post" action="{{ url_for('admin.forum_moderate', topic_id=topic.id) }}" class="inline">
+              <input type="hidden" name="action" value="pin">
+              <button type="submit" class="link">{{ 'Bỏ ghim' if topic.pinned else 'Ghim' }}</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.forum_moderate', topic_id=topic.id) }}" class="inline">
+              <input type="hidden" name="action" value="lock">
+              <button type="submit" class="link">{{ 'Mở khoá' if topic.locked else 'Khoá' }}</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.forum_moderate', topic_id=topic.id) }}" class="inline" onsubmit="return confirm('Xóa chủ đề này?');">
+              <input type="hidden" name="action" value="delete">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có chủ đề nào.') }}
+{% endif %}
+{% endblock %}

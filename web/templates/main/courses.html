@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Khoá học — miniLMS{% endblock %}
+{% block content %}
+<h1>Khoá học</h1>
+<form class="filters" method="get" action="{{ url_for('main.courses') }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên hoặc mô tả…">
+  <select name="category">
+    <option value="0">Tất cả danh mục</option>
+    {% for cat in categories %}
+      <option value="{{ cat.id }}" {% if cat.id == category_id %}selected{% endif %}>{{ cat.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="instructor">
+    <option value="">Tất cả giảng viên</option>
+    {% for gv in instructors %}
+      <option value="{{ gv.id }}" {% if gv.id == instructor_id %}selected{% endif %}>{{ gv.display_name }}</option>
+    {% endfor %}
+  </select>
+  <select name="tag">
+    <option value="">Tất cả tag</option>
+    {% for t in tags %}
+      <option value="{{ t.name }}" {% if t.name == tag %}selected{% endif %}>#{{ t.name }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Lọc</button>
+</form>
+
+{% if cards %}
+  <div class="grid">
+    {% for row in cards %}{{ m.course_card(row) }}{% endfor %}
+  </div>
+{% else %}
+  {{ m.empty('Không tìm thấy khoá học phù hợp.') }}
+{% endif %}
+{% endblock %}

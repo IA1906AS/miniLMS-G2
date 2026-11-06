@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Buổi học trực tuyến — miniLMS{% endblock %}
+{% block content %}
+<h1>Buổi học trực tuyến</h1>
+
+{% if rows %}
+  {% for row in rows %}
+    <section class="card mt">
+      <h3>{{ row.course.title }}</h3>
+
+      {% if row.sessions %}
+        <table class="table">
+          <thead><tr><th>Tiêu đề</th><th>Bắt đầu</th><th>Link</th><th></th></tr></thead>
+          <tbody>
+            {% for s in row.sessions %}
+              <tr>
+                <td>{{ s.title }}</td>
+                <td class="muted small">{{ s.start_at.strftime('%d/%m/%Y %H:%M') if s.start_at else '—' }}</td>
+                <td><a href="{{ s.meeting_url }}" target="_blank" rel="noopener">Tham gia</a></td>
+                <td>
+                  <form method="post" action="{{ url_for('instructor.live_delete', session_id=s.id) }}" class="inline"
+                        onsubmit="return confirm('Xoá buổi học này?');">
+                    <button type="submit" class="link danger">Xoá</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ m.empty('Chưa có buổi học nào.') }}
+      {% endif %}
+
+      <form method="post" action="{{ url_for('instructor.live_create', course_id=row.course.id) }}" class="form-grid mt">
+        <label>Tiêu đề
+          <input type="text" name="title" required>
+        </label>
+        <label>Link phòng học
+          <input type="url" name="meeting_url" placeholder="https://meet.google.com/…" required>
+        </label>
+        <label>Bắt đầu
+          <input type="datetime-local" name="start_at">
+        </label>
+        <button type="submit" class="btn small">+ Tạo buổi học</button>
+      </form>
+    </section>
+  {% endfor %}
+{% else %}
+  {{ m.empty('Bạn chưa phụ trách khoá học nào.') }}
+{% endif %}
+{% endblock %}

@@ -39,9 +39,7 @@ class Store:
         for u in data.get("users", []):
             raw_password = u.get("password", "")
             # bcrypt cost >= 10
-            hashed = bcrypt.hashpw(
-                raw_password.encode("utf-8"), bcrypt.gensalt(rounds=10)
-            ).decode("utf-8")
+            hashed = bcrypt.hashpw(raw_password.encode("utf-8"), bcrypt.gensalt(rounds=10)).decode("utf-8")
             user_entry = {
                 "id": u["id"],
                 "email": u["email"],
@@ -71,11 +69,12 @@ class Store:
         # 3. Enrollments
         self.enrollments.clear()
         for e in data.get("enrollments", []):
+            score_val = e.get("score")
             self.enrollments.append(
                 {
                     "courseId": e["courseId"],
                     "studentId": e["studentId"],
-                    "score": float(e["score"]),
+                    "score": float(score_val) if score_val is not None else 0.0,
                 }
             )
 
@@ -119,9 +118,7 @@ class Store:
                 old_score = float(e["score"])
                 e["score"] = float(score)
                 return old_score
-        raise KeyError(
-            f"Enrollment not found for course {course_id} and student {student_id}"
-        )
+        raise KeyError(f"Enrollment not found for course {course_id} and student {student_id}")
 
     # Brute-force helpers
     def is_account_locked(self, email: str, now: float) -> bool:
@@ -139,9 +136,7 @@ class Store:
 
     def record_login_failure(self, email: str, now: float) -> tuple[int, bool]:
         normalized = email.strip().lower()
-        record = self.failed_logins.setdefault(
-            normalized, {"count": 0, "locked_until": 0.0}
-        )
+        record = self.failed_logins.setdefault(normalized, {"count": 0, "locked_until": 0.0})
         record["count"] += 1
         is_locked = False
         if record["count"] >= 5:

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sửa khoá học' if course else 'Tạo khoá học' }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.courses') }}">Giảng dạy</a> /
+  {{ 'Sửa khoá học' if course else 'Khoá học mới' }}
+</nav>
+
+<h1>{{ 'Chỉnh sửa khoá học' if course else 'Tạo khoá học mới' }}</h1>
+
+<form method="post" class="card form-card"
+      action="{{ url_for('instructor.course_edit', course_id=course.id) if course else url_for('instructor.course_new') }}">
+  <label>Tên khoá học *
+    <input type="text" name="title" value="{{ course.title if course else '' }}" required>
+  </label>
+  <label>Mô tả
+    <textarea name="description" rows="4">{{ course.description or '' if course else '' }}</textarea>
+  </label>
+  <label>Danh mục
+    <select name="category_id">
+      <option value="">— Không chọn —</option>
+      {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if course and course.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Giá (đ)
+    <input type="number" name="price" step="1000" min="0" value="{{ course.price if course else 0 }}">
+  </label>
+  <label>Trạng thái
+    <select name="status">
+      {% for value, label in [('DRAFT','Nháp'), ('PUBLISHED','Xuất bản'), ('HIDDEN','Ẩn')] %}
+        <option value="{{ value }}" {% if course and course.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if course %}
+    <label class="check">
+      <input type="checkbox" name="leaderboard_public" value="1" {% if course.leaderboard_public %}checked{% endif %}>
+      Công khai bảng xếp hạng khoá này
+    </label>
+  {% endif %}
+  <div class="row-actions">
+    <button type="submit" class="btn">Lưu</button>
+    <a class="btn ghost" href="{{ url_for('instructor.courses') }}">Huỷ</a>
+    {% if course %}
+      <a class="btn ghost" href="{{ url_for('instructor.course_curriculum', course_id=course.id) }}">Sửa nội dung →</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Admin Dashboard — miniLMS{% endblock %}
+{% block content %}
+<h1>Quản trị hệ thống</h1>
+
+<section class="grid three mt">
+  <article class="card stat-card">
+    <span class="stat-num">{{ totals.users }}</span>
+    <span class="muted">người dùng</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ totals.courses }}</span>
+    <span class="muted">khoá học ({{ totals.published }} xuất bản)</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ totals.enrollments }}</span>
+    <span class="muted">lượt ghi danh</span>
+  </article>
+</section>
+
+<section class="card mt">
+  <h2>Phân bố vai trò</h2>
+  <ul class="meta">
+    {% for row in role_counts %}
+      <li>{{ row.label }}: <strong>{{ row.count }}</strong></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card mt">
+  <h2>Khoá học gần đây</h2>
+  {% if recent %}
+    <table class="table">
+      <thead><tr><th>Khoá học</th><th>Giảng viên</th><th>Trạng thái</th><th>Ngày tạo</th></tr></thead>
+      <tbody>
+        {% for course in recent %}
+          <tr>
+            <td><a href="{{ url_for('main.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+            <td>{{ instructor.display_name if instructor else '—' }}</td>
+            <td><span class="pill {{ 'ok' if course.status == 'PUBLISHED' else 'draft' }}">{{ course.status }}</span></td>
+            <td class="muted small">{{ course.created_at.strftime('%d/%m/%Y') if course.created_at else '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có khoá học nào.') }}
+  {% endif %}
+</section>
+
+<div class="row-actions mt">
+  <a class="btn" href="{{ url_for('admin.users') }}">Quản lý người dùng</a>
+  <a class="btn" href="{{ url_for('admin.courses') }}">Quản lý khoá học</a>
+  <a class="btn" href="{{ url_for('admin.reports') }}">Báo cáo</a>
+  <a class="btn" href="{{ url_for('admin.settings') }}">Cài đặt</a>
+</div>
+{% endblock %}

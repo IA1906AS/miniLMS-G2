@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt thanh toán — Admin{% endblock %}
+{% block content %}
+<h1>Cài đặt thanh toán</h2>
+
+<form method="post" action="{{ url_for('admin.settings_payments_save') }}" class="card form-card mt">
+  <h3>Stripe</h3>
+  <label>Publishable Key
+    <input type="text" name="payment_stripe_publishable" value="{{ settings.get('payment_stripe_publishable', '') }}">
+  </label>
+  <label>Secret Key
+    <input type="password" name="payment_stripe_secret" value="{{ settings.get('payment_stripe_secret', '') }}">
+  </label>
+  <label>Webhook Secret
+    <input type="password" name="payment_stripe_webhook" value="{{ settings.get('payment_stripe_webhook', '') }}">
+  </label>
+
+  <h3 class="mt">VNPay</h3>
+  <label>TMN Code
+    <input type="text" name="payment_vnpay_tmn" value="{{ settings.get('payment_vnpay_tmn', '') }}">
+  </label>
+  <label>Hash Secret
+    <input type="password" name="payment_vnpay_hash" value="{{ settings.get('payment_vnpay_hash', '') }}">
+  </label>
+  <label>Return URL
+    <input type="url" name="payment_vnpay_return" value="{{ settings.get('payment_vnpay_return', '') }}">
+  </label>
+
+  <h3 class="mt">Tiền tệ & Hoa hồng</h3>
+  <label>Tiền tệ mặc định
+    <input type="text" name="payment_currency" value="{{ settings.get('payment_currency', 'VND') }}">
+  </label>
+  <label>Tỷ lệ hoa hồng GV (%)
+    <input type="number" name="payment_instructor_share" step="0.1" min="0" max="100" value="{{ settings.get('payment_instructor_share', '70') }}">
+  </label>
+
+  <button type="submit" class="btn mt">Lưu cài đặt</button>
+</form>
+{% endblock %}

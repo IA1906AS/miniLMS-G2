@@ -1,60 +1,93 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}miniLMS{% endblock %} · miniLMS</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  </head>
-  <body>
-    <header class="site-header">
-      <a class="brand" href="{{ url_for('web.home') }}">
-        <span class="brand-mark">L</span>
-        <span class="brand-text">mini<strong>LMS</strong></span>
-      </a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}miniLMS{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ url_for('main.home') }}">mini<span>LMS</span></a>
+  <nav class="topnav">
+    <a href="{{ url_for('main.courses') }}">Khoá học</a>
+    <a href="{{ url_for('main.instructors') }}">Giảng viên</a>
+    {% if current_user %}
+      <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+      {% if current_user.role == 'STUDENT' %}
+        <a href="{{ url_for('student.my_courses') }}">Khoá của tôi</a>
+        <a href="{{ url_for('student.grades') }}">Điểm</a>
+        <a href="{{ url_for('student.progress') }}">Tiến độ</a>
+        <a href="{{ url_for('student.certificates') }}">Chứng chỉ</a>
+        <a href="{{ url_for('student.leaderboard') }}">Xếp hạng</a>
+        <a href="{{ url_for('student.forum_index') }}">Diễn đàn</a>
+        <a href="{{ url_for('student.messages_index') }}">Tin nhắn</a>
+        <a href="{{ url_for('student.notifications') }}">Thông báo</a>
+        <a href="{{ url_for('student.profile') }}">Hồ sơ</a>
+        <a href="{{ url_for('student.settings') }}">Cài đặt</a>
+      {% endif %}
+      {% if current_user.role == 'INSTRUCTOR' %}
+        <a href="{{ url_for('instructor.courses') }}">Khóa học</a>
+        <a href="{{ url_for('instructor.quizzes') }}">Bài kiểm tra</a>
+        <a href="{{ url_for('instructor.assignments') }}">Bài tập</a>
+        <a href="{{ url_for('instructor.grades') }}">Bảng điểm</a>
+        <a href="{{ url_for('instructor.certificates') }}">Chứng chỉ</a>
+        <a href="{{ url_for('instructor.forum') }}">Diễn đàn</a>
+        <a href="{{ url_for('instructor.live') }}">Live Session</a>
+        <a href="{{ url_for('instructor.messages_index') }}">Tin nhắn</a>
+        <a href="{{ url_for('instructor.notifications') }}">Thông báo</a>
+        <a href="{{ url_for('instructor.profile') }}">Hồ sơ</a>
+      {% endif %}
+      {% if current_user.role == 'ADMIN' %}
+        <a href="{{ url_for('admin.dashboard') }}">Dashboard Admin</a>
+        <a href="{{ url_for('admin.users') }}">Người dùng</a>
+        <a href="{{ url_for('admin.courses') }}">Khóa học</a>
+        <a href="{{ url_for('admin.categories') }}">Danh mục</a>
+        <a href="{{ url_for('admin.quizzes') }}">Bài kiểm tra</a>
+        <a href="{{ url_for('admin.assignments') }}">Bài tập</a>
+        <a href="{{ url_for('admin.grades') }}">Bảng điểm</a>
+        <a href="{{ url_for('admin.certificates') }}">Chứng chỉ</a>
+        <a href="{{ url_for('admin.badges') }}">Huy hiệu</a>
+        <a href="{{ url_for('admin.reports') }}">Báo cáo</a>
+        <a href="{{ url_for('admin.forum') }}">Diễn đàn</a>
+        <a href="{{ url_for('admin.notifications') }}">Thông báo</a>
+        <a href="{{ url_for('admin.live') }}">Live</a>
+        <a href="{{ url_for('admin.audit') }}">Nhật ký</a>
+        <a href="{{ url_for('admin.settings') }}">Cài đặt</a>
+      {% endif %}
+    {% endif %}
+  </nav>
+  <div class="account">
+    {% if current_user %}
+      {% if current_user.avatar_path %}
+        <img class="avatar-img small" src="{{ url_for('files.serve_avatar', user_id=current_user.id) }}" alt="avatar">
+      {% endif %}
+      <span class="badge role-{{ current_user.role|lower }}">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+      <span class="who">{{ current_user.email }}</span>
+      <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+        <button type="submit" class="link">Đăng xuất</button>
+      </form>
+    {% else %}
+      <a class="btn ghost" href="{{ url_for('auth.login') }}">Đăng nhập</a>
+      <a class="btn" href="{{ url_for('auth.register') }}">Đăng ký</a>
+    {% endif %}
+  </div>
+</header>
 
-      <nav class="nav">
-        <a
-          href="{{ url_for('web.home') }}"
-          class="nav-link{% if request.endpoint == 'web.home' %} is-active{% endif %}"
-          >Trang chủ</a
-        >
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+    <div class="flash-wrap">
+      {% for cat, msg in msgs %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
 
-        {% if current_user %}
-        <a
-          href="{{ url_for('web.account') }}"
-          class="nav-link{% if request.endpoint == 'web.account' %} is-active{% endif %}"
-          >Tài khoản</a
-        >
-        <a
-          href="{{ url_for('web.change_password') }}"
-          class="nav-link{% if request.endpoint == 'web.change_password' %} is-active{% endif %}"
-          >Đổi mật khẩu</a
-        >
-        <span class="nav-user">
-          <span class="avatar">{{ current_user.email[0] | upper }}</span>
-          <span class="nav-email">{{ current_user.email }}</span>
-          <span class="badge badge-{{ current_user.role | lower }}"
-            >{{ role_labels[current_user.role] }}</span
-          >
-        </span>
-        <!-- nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token -->
-        <form method="post" action="{{ url_for('web.logout') }}">
-          <button type="submit" class="btn btn-ghost">Đăng xuất</button>
-        </form>
-        {% else %}
-        <span class="badge badge-guest">Khách</span>
-        <a class="btn btn-ghost" href="{{ url_for('web.register') }}">Đăng ký</a>
-        <a class="btn btn-primary" href="{{ url_for('web.login') }}">Đăng nhập</a>
-        {% endif %}
-      </nav>
-    </header>
+<main class="page">
+  {% block content %}{% endblock %}
+</main>
 
-    <main class="page">{% block content %}{% endblock %}</main>
-
-    <footer class="site-footer">
-      <span>miniLMS · Flask + Jinja2 + SQLite</span>
-      <span>Dữ liệu demo nạp từ seed.json</span>
-    </footer>
-  </body>
+<footer class="foot">miniLMS — đồ án IAW301 · Flask + SQLAlchemy · <a href="{{ url_for('api.docs') }}">API docs</a></footer>
+</body>
 </html>

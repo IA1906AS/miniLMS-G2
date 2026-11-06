@@ -1,0 +1,1136 @@
+[
+  {
+    "rule": "/",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.home",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/admin/assignments",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.assignments",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/assignments/<int:assignment_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.assignment_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/audit",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.audit",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/badges",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.badges",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/badges/<int:badge_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.badge_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/badges/new",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.badge_create",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/categories",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.categories",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/categories/<int:cat_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.category_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/categories/new",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.category_create",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/certificates",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.certificates",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/certificates/<int:cert_id>/revoke",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.certificate_revoke",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/certificates/issue",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.certificate_issue",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.courses",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/courses/<course_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.course_detail",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/courses/<course_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.course_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/courses/<course_id>/reassign",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.course_reassign",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/courses/<course_id>/status",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.course_status",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/dashboard",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.dashboard",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/forum",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.forum",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/forum/<int:topic_id>/moderate",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.forum_moderate",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/grades",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.grades",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/grades/assignment/<int:submission_id>/adjust",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.grade_assignment_adjust",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/grades/quiz/<int:attempt_id>/adjust",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.grade_quiz_adjust",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/live",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.live",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/live/<int:session_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.live_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/notifications",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.notifications",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/notifications/send",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.notification_send",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/quizzes",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.quizzes",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/quizzes/<int:quiz_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.quiz_delete",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/reports",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.reports",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/reports/courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.reports_courses",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/reports/users",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.reports_users",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.settings",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.settings_update",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings/payments",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.settings_payments",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings/payments",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.settings_payments_save",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings/roles",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.settings_roles",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/settings/roles",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.settings_roles_save",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/users",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.users",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/users/<user_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "admin.user_detail",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/users/<user_id>/lock",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.user_lock",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/users/<user_id>/role",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.user_change_role",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/admin/users/<user_id>/unlock",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "admin.user_unlock",
+    "blueprint": "admin"
+  },
+  {
+    "rule": "/api/assignments/<int:assignment_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.get_assignment",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.list_courses",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/courses/<course_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.get_course",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/courses/<course_id>/grades",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.get_grades",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/docs",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.docs",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/me",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.me",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/api/openapi.json",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "api.openapi",
+    "blueprint": "api"
+  },
+  {
+    "rule": "/assignments/<int:assignment_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "quiz.assignment_detail",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/assignments/<int:assignment_id>/submissions/<int:submission_id>/grade",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "quiz.assignment_grade",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/assignments/<int:assignment_id>/submit",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "quiz.assignment_submit",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/attachments/<int:attachment_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "files.delete_attachment",
+    "blueprint": "files"
+  },
+  {
+    "rule": "/attachments/<int:attachment_id>/download",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "files.download_attachment",
+    "blueprint": "files"
+  },
+  {
+    "rule": "/avatar/<user_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "files.serve_avatar",
+    "blueprint": "files"
+  },
+  {
+    "rule": "/certificates",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.certificates",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/certificates/<code>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.certificate_detail",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.courses",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/courses/<course_id>",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "main.course_detail",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/courses/<course_id>/preview/<int:lesson_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.course_preview",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/dashboard",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.dashboard",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/enroll",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.enroll_by_code",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forgot-password",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "auth.forgot_password",
+    "blueprint": "auth"
+  },
+  {
+    "rule": "/forum",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.forum_index",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.forum_course",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/post/<int:post_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_post_delete",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/post/<int:post_id>/edit",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_post_edit",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/topic/<int:topic_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.forum_topic",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/topic/<int:topic_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_topic_delete",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/topic/<int:topic_id>/edit",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_topic_edit",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/topic/<int:topic_id>/reply",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_reply",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/forum/<course_id>/topic/new",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.forum_topic_create",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/grades",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.grades",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/instructor/assignments",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.assignments",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/certificates",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.certificates",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/certificates/<int:certificate_id>/revoke",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.certificate_revoke",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/chapters/<int:chapter_id>/lessons",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.lesson_create",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.courses",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/assignments",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.assignment_create",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/certificates/issue",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.certificate_issue",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/chapters",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.chapter_create",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/curriculum",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.course_curriculum",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/edit",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.course_edit",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/live",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.live_create",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/quizzes/new",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.quiz_new",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/reports",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.course_reports",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/reports/export",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.course_reports_export",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/students",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.course_students_view",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/students/<student_id>/remove",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.student_remove",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/<course_id>/students/add",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.student_add",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/courses/new",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.course_new",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/forum",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.forum",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/forum/<int:topic_id>/moderate",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.forum_moderate",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/grades",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.grades",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/lessons/<int:lesson_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.lesson_delete",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/live",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.live",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/live/<int:session_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.live_delete",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/messages",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.messages_index",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/messages/<student_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.messages_conversation",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/messages/<student_id>/send",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.messages_send",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/notifications",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.notification_send",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/notifications",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.notifications",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/profile",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.profile",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/profile/edit",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.profile_edit",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/profile/password",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.profile_password",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/questions/<int:question_id>/delete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "instructor.question_delete",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/quizzes",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.quizzes",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/quizzes/<int:quiz_id>/questions",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "instructor.quiz_questions",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructor/reports/export",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "instructor.reports_export",
+    "blueprint": "instructor"
+  },
+  {
+    "rule": "/instructors",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.instructors",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/leaderboard",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.leaderboard",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/lessons/<int:lesson_id>/attachments",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "files.upload_attachment",
+    "blueprint": "files"
+  },
+  {
+    "rule": "/login",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "auth.login",
+    "blueprint": "auth"
+  },
+  {
+    "rule": "/logout",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "auth.logout",
+    "blueprint": "auth"
+  },
+  {
+    "rule": "/members/<user_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "main.member_profile",
+    "blueprint": "main"
+  },
+  {
+    "rule": "/messages",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.messages_index",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/messages/<instructor_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.messages_conversation",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/messages/<instructor_id>/send",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.messages_send",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/my-courses",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.my_courses",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/my-courses/<course_id>/learn",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.learn",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/my-courses/<course_id>/learn/<int:lesson_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.learn_lesson",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/my-courses/<course_id>/learn/<int:lesson_id>/complete",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.complete_lesson",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/notifications",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.notifications",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/notifications/<int:notification_id>/read",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "student.notification_read",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/profile",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.profile",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/profile/avatar",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "files.upload_avatar",
+    "blueprint": "files"
+  },
+  {
+    "rule": "/profile/edit",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "student.profile_edit",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/profile/password",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "student.profile_password",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/progress",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "student.progress",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/quizzes/<int:quiz_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "quiz.intro",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/quizzes/<int:quiz_id>/attempts/<int:attempt_id>",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "quiz.take",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/quizzes/<int:quiz_id>/attempts/<int:attempt_id>/result",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "quiz.result",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/quizzes/<int:quiz_id>/attempts/<int:attempt_id>/submit",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "quiz.submit",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/quizzes/<int:quiz_id>/start",
+    "methods": [
+      "POST"
+    ],
+    "endpoint": "quiz.start",
+    "blueprint": "quiz"
+  },
+  {
+    "rule": "/register",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "auth.register",
+    "blueprint": "auth"
+  },
+  {
+    "rule": "/reset-password/<token>",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "auth.reset_password",
+    "blueprint": "auth"
+  },
+  {
+    "rule": "/settings",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "endpoint": "student.settings",
+    "blueprint": "student"
+  },
+  {
+    "rule": "/submissions/<int:submission_id>/download",
+    "methods": [
+      "GET"
+    ],
+    "endpoint": "files.download_submission",
+    "blueprint": "files"
+  }
+]

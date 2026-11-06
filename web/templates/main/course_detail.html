@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ course.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('main.courses') }}">Khoá học</a> / {{ course.title }}</nav>
+
+<section class="course-hero">
+  <div>
+    <span class="pill">{{ 'Miễn phí' if not course.price else '{:,.0f}đ'.format(course.price) }}</span>
+    <h1>{{ course.title }}</h1>
+    <p class="muted">{{ course.description or 'Chưa có mô tả.' }}</p>
+    <ul class="meta">
+      <li>Giảng viên: <strong>{{ instructor.display_name if instructor else '—' }}</strong></li>
+      <li>{{ students }} học viên</li>
+      <li>{{ quiz_count }} bài kiểm tra</li>
+    </ul>
+  </div>
+  <aside class="card enroll-box">
+    {% if enrolled %}
+      <p class="ok">Bạn đã đăng ký khoá này.</p>
+      <a class="btn full" href="{{ url_for('student.learn', course_id=course.id) }}">Vào học</a>
+    {% elif current_user and current_user.role == 'STUDENT' %}
+      <p class="muted">Đăng ký để mở toàn bộ bài học.</p>
+      <form method="post" action="{{ url_for('main.course_detail', course_id=course.id) }}">
+        <button class="btn full" type="submit">Đăng ký khoá học</button>
+      </form>
+    {% elif not current_user %}
+      <p class="muted">Đăng nhập để đăng ký khoá học.</p>
+      <a class="btn full" href="{{ url_for('auth.login', next=url_for('main.course_detail', course_id=course.id)) }}">Đăng nhập</a>
+    {% else %}
+      <p class="muted">Chỉ sinh viên mới đăng ký được khoá học.</p>
+    {% endif %}
+  </aside>
+</section>
+
+<section>
+  <h2>Chương trình học</h2>
+  {% if chapters %}
+    {% for block in chapters %}
+      <div class="chapter">
+        <h3>{{ block.chapter.title }}</h3>
+        <ul class="lesson-list">
+          {% for lesson in block.lessons %}
+            <li>
+              <span class="kind kind-{{ lesson.kind }}">{{ lesson.kind }}</span>
+              <span class="lesson-title">{{ lesson.title }}</span>
+              <span class="muted small">{{ lesson.duration_min }} phút</span>
+              {% if lesson.is_free_preview %}
+                <a class="pill free" href="{{ url_for('main.course_preview', course_id=course.id, lesson_id=lesson.id) }}">Học thử</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">Khoá học chưa có nội dung.</p>
+  {% endif %}
+</section>
+
+{% if quizzes %}
+<section>
+  <h2>Bài kiểm tra</h2>
+  <ul class="plain-list">
+    {% for quiz in quizzes %}
+      <li>
+        <a href="{{ url_for('quiz.intro', quiz_id=quiz.id) }}">{{ quiz.title }}</a>
+        <span class="muted small">{{ quiz.time_limit_min }} phút · đạt {{ quiz.pass_score }}/10 · {{ quiz.max_attempts or '∞' }} lượt</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

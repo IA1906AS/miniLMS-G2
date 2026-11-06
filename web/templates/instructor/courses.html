@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Giảng dạy — miniLMS{% endblock %}
+{% block content %}
+<div class="section-head">
+  <h1>Khoá học của tôi</h1>
+  <a class="btn" href="{{ url_for('instructor.course_new') }}">+ Tạo khoá học</a>
+</div>
+
+{% if rows %}
+  <table class="table">
+    <thead>
+      <tr><th>Khoá học</th><th>Trạng thái</th><th>Học viên</th><th>Bài học</th><th>Giá</th><th>Thao tác</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td><a href="{{ url_for('main.course_detail', course_id=row.course.id) }}">{{ row.course.title }}</a></td>
+          <td><span class="pill {{ 'ok' if row.course.status == 'PUBLISHED' else 'draft' }}">{{ row.course.status }}</span></td>
+          <td>{{ row.students }}</td>
+          <td>{{ row.lessons }}</td>
+          <td>{{ '{:,.0f}đ'.format(row.course.price) }}</td>
+          <td class="row-actions">
+            <a class="btn small ghost" href="{{ url_for('instructor.course_edit', course_id=row.course.id) }}">Sửa</a>
+            <a class="btn small ghost" href="{{ url_for('instructor.course_curriculum', course_id=row.course.id) }}">Nội dung</a>
+            <a class="btn small ghost" href="{{ url_for('instructor.course_students_view', course_id=row.course.id) }}">Học viên</a>
+            <a class="btn small ghost" href="{{ url_for('instructor.course_reports', course_id=row.course.id) }}">Báo cáo</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Bạn chưa có khoá học nào.') }}
+{% endif %}
+{% endblock %}

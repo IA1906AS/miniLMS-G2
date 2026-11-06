@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Báo cáo người dùng — Admin{% endblock %}
+{% block content %}
+<h1>Báo cáo theo người dùng</h2>
+
+{% if users_data %}
+  <table class="table">
+    <thead><tr><th>Học viên</th><th>Email</th><th>Khóa đăng ký</th><th>Hoàn thành</th><th>Quiz attempts</th><th>Điểm TB quiz</th><th>Chứng chỉ</th></tr></thead>
+    <tbody>
+      {% for user, enrollments, completed, quiz_attempts, avg_quiz_score, certificates in users_data %}
+        <tr>
+          <td><a href="{{ url_for('admin.user_detail', user_id=user.id) }}">{{ user.display_name }}</a></td>
+          <td class="muted small">{{ user.email }}</td>
+          <td>{{ enrollments }}</td>
+          <td>{{ completed }}</td>
+          <td>{{ quiz_attempts }}</td>
+          <td>{{ avg_quiz_score|round(1) if avg_quiz_score else '—' }}</td>
+          <td>{{ certificates }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có dữ liệu.') }}
+{% endif %}
+{% endblock %}

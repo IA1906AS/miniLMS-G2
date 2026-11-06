@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Thông báo — miniLMS{% endblock %}
+{% block content %}
+<h1>Thông báo</h1>
+
+{% if notifications %}
+  <ul class="plain-list">
+    {% for note in notifications %}
+      <li class="card mt {% if not note.read_at %}unread{% endif %}">
+        <p class="muted small">{{ note.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        <p>{{ note.body }}</p>
+        {% if note.link %}
+          <a class="btn small mt" href="{{ note.link }}">Xem chi tiết</a>
+        {% endif %}
+        {% if not note.read_at %}
+          <form method="post" action="{{ url_for('student.notification_read', notification_id=note.id) }}" class="inline mt">
+            <button type="submit" class="link">Đánh dấu đã đọc</button>
+          </form>
+        {% else %}
+          <span class="pill ok">Đã đọc</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  {{ m.empty('Không có thông báo nào.') }}
+{% endif %}
+{% endblock %}
