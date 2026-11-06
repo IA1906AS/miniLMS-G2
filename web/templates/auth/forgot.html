@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Quên mật khẩu — miniLMS{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h1>Quên mật khẩu</h1>
+    <p class="muted">Nhập email đã đăng ký. Hệ thống sẽ gửi liên kết đặt lại mật khẩu có thời hạn.</p>
+
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    {% if success %}<div class="flash success">{{ success }}</div>{% endif %}
+
+    <form method="post" action="{{ url_for('auth.forgot_password') }}">
+      <label>Email
+        <input type="email" name="email" value="{{ email }}" required>
+      </label>
+      <button type="submit" class="btn full">Gửi liên kết đặt lại</button>
+    </form>
+
+    <p class="auth-links"><a href="{{ url_for('auth.login') }}">← Về trang đăng nhập</a></p>
+  </div>
+</section>
+{% endblock %}

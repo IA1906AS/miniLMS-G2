@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Khoá của tôi — miniLMS{% endblock %}
+{% block content %}
+<h1>Khoá học của tôi</h1>
+
+<form method="post" action="{{ url_for('student.enroll_by_code') }}" class="card form-card mt" style="max-width:520px;">
+  <h3>Ghi danh bằng mã khoá học</h3>
+  <p class="muted small">Nhập mã do giảng viên cung cấp (ví dụ C1-2026).</p>
+  <label>Mã ghi danh
+    <input type="text" name="code" placeholder="C1-2026" required>
+  </label>
+  <button type="submit" class="btn small">Ghi danh</button>
+</form>
+
+{% if rows %}
+  <div class="grid two mt">
+    {% for row in rows %}
+      <article class="card">
+        <h3><a href="{{ url_for('student.learn', course_id=row.course.id) }}">{{ row.course.title }}</a></h3>
+        <p class="muted small">GV: {{ row.instructor.display_name if row.instructor else '—' }}</p>
+        {{ m.progress(row.percent, row.done, row.total) }}
+        <a class="btn small mt" href="{{ url_for('student.learn', course_id=row.course.id) }}">Vào học</a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ m.empty('Bạn chưa đăng ký khoá học nào.') }}
+  <a class="btn" href="{{ url_for('main.courses') }}">Khám phá khoá học</a>
+{% endif %}
+{% endblock %}

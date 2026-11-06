@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "bcrypt>=5.0.0",
     "flask>=3.1.3",
+    "psycopg[binary]>=3.1",
     "pyjwt>=2.15.1",
     "python-dotenv>=1.0",
     "requests>=2.34.2",
@@ -47,7 +48,7 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 # pre-commit/CI chạy "uv run mypy" không đối số -> chỉ định rõ file cần kiểm tra.
 # Chỉ strict-check source code chính (test nhiều mock/fixture khó chú thích kiểu).
-files = ["main.py", "app", "web", "webapp.py"]
+files = ["app", "web", "webapp.py", "tools"]
 
 # --- Pytest + coverage ---
 [tool.pytest.ini_options]

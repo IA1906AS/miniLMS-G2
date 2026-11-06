@@ -1,20 +1,639 @@
 {
   "users": [
-    { "id": "u1", "email": "admin@lms.test", "password": "Lms@2026", "role": "ADMIN" },
-    { "id": "u2", "email": "an.gv@lms.test", "password": "Lms@2026", "role": "INSTRUCTOR" },
-    { "id": "u3", "email": "binh.gv@lms.test", "password": "Lms@2026", "role": "INSTRUCTOR" },
-    { "id": "u4", "email": "chi.sv@lms.test", "password": "Lms@2026", "role": "STUDENT" },
-    { "id": "u5", "email": "dung.sv@lms.test", "password": "Lms@2026", "role": "STUDENT" },
-    { "id": "u6", "email": "em.sv@lms.test", "password": "Lms@2026", "role": "STUDENT" }
+    {
+      "id": "u1",
+      "email": "admin@lms.test",
+      "password": "Lms@2026",
+      "role": "ADMIN",
+      "full_name": "Quản trị viên"
+    },
+    {
+      "id": "u2",
+      "email": "an.gv@lms.test",
+      "password": "Lms@2026",
+      "role": "INSTRUCTOR",
+      "full_name": "An Giang",
+      "bio": "Giảng viên Lập trình Web & Mobile"
+    },
+    {
+      "id": "u3",
+      "email": "binh.gv@lms.test",
+      "password": "Lms@2026",
+      "role": "INSTRUCTOR",
+      "full_name": "Bình Minh",
+      "bio": "Giảng viên Cơ sở dữ liệu & Data Science"
+    },
+    {
+      "id": "u4",
+      "email": "chi.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Chi Nguyễn"
+    },
+    {
+      "id": "u5",
+      "email": "dung.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Dũng Trần"
+    },
+    {
+      "id": "u6",
+      "email": "em.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Em Lê"
+    },
+    {
+      "id": "u7",
+      "email": "phuong.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Phương Hoàng"
+    },
+    {
+      "id": "u8",
+      "email": "quan.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Quân Võ"
+    },
+    {
+      "id": "u9",
+      "email": "trang.sv@lms.test",
+      "password": "Lms@2026",
+      "role": "STUDENT",
+      "full_name": "Trang Đỗ"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Lập trình"
+    },
+    {
+      "id": 2,
+      "name": "Cơ sở dữ liệu"
+    },
+    {
+      "id": 3,
+      "name": "Data Science"
+    },
+    {
+      "id": 4,
+      "name": "Mobile"
+    }
   ],
   "courses": [
-    { "id": "c1", "title": "Lập trình Web", "instructorId": "u2" },
-    { "id": "c2", "title": "Cơ sở dữ liệu", "instructorId": "u3" }
+    {
+      "id": "c1",
+      "title": "Lập trình Web",
+      "instructorId": "u2",
+      "description": "Học lập trình web từ cơ bản đến nâng cao: HTML, CSS, JavaScript, React, Node.js",
+      "price": 0,
+      "status": "PUBLISHED",
+      "categoryId": 1
+    },
+    {
+      "id": "c2",
+      "title": "Cơ sở dữ liệu",
+      "instructorId": "u3",
+      "description": "Tìm hiểu SQL, thiết kế DB, tối ưu truy vấn, NoSQL cơ bản",
+      "price": 0,
+      "status": "PUBLISHED",
+      "categoryId": 2
+    },
+    {
+      "id": "c3",
+      "title": "Python cho Data Science",
+      "instructorId": "u2",
+      "description": "Python, Pandas, NumPy, Matplotlib, Machine Learning cơ bản",
+      "price": 500000,
+      "status": "PUBLISHED",
+      "categoryId": 3
+    },
+    {
+      "id": "c4",
+      "title": "React Native Mobile",
+      "instructorId": "u3",
+      "description": "Phát triển ứng dụng mobile cross-platform với React Native",
+      "price": 800000,
+      "status": "PUBLISHED",
+      "categoryId": 4
+    },
+    {
+      "id": "c5",
+      "title": "DevOps căn bản",
+      "instructorId": "u2",
+      "description": "Docker, Kubernetes, CI/CD, monitoring, deployment tự động",
+      "price": 1200000,
+      "status": "PUBLISHED",
+      "categoryId": 1
+    }
+  ],
+  "chapters": [
+    {
+      "id": 1,
+      "courseId": "c1",
+      "title": "Chương 1: Cơ bản HTML/CSS",
+      "position": 1
+    },
+    {
+      "id": 2,
+      "courseId": "c1",
+      "title": "Chương 2: JavaScript cơ bản",
+      "position": 2
+    },
+    {
+      "id": 3,
+      "courseId": "c1",
+      "title": "Chương 3: ReactJS",
+      "position": 3
+    },
+    {
+      "id": 4,
+      "courseId": "c1",
+      "title": "Chương 4: Backend với Node.js",
+      "position": 4
+    },
+    {
+      "id": 5,
+      "courseId": "c2",
+      "title": "Chương 1: SQL cơ bản",
+      "position": 1
+    },
+    {
+      "id": 6,
+      "courseId": "c2",
+      "title": "Chương 2: Thiết kế DB",
+      "position": 2
+    },
+    {
+      "id": 7,
+      "courseId": "c2",
+      "title": "Chương 3: Tối ưu & NoSQL",
+      "position": 3
+    },
+    {
+      "id": 8,
+      "courseId": "c3",
+      "title": "Chương 1: Python cơ bản",
+      "position": 1
+    },
+    {
+      "id": 9,
+      "courseId": "c3",
+      "title": "Chương 2: Pandas & NumPy",
+      "position": 2
+    },
+    {
+      "id": 10,
+      "courseId": "c3",
+      "title": "Chương 3: ML cơ bản",
+      "position": 3
+    },
+    {
+      "id": 11,
+      "courseId": "c4",
+      "title": "Chương 1: React Native cơ bản",
+      "position": 1
+    },
+    {
+      "id": 12,
+      "courseId": "c4",
+      "title": "Chương 2: Navigation & State",
+      "position": 2
+    },
+    {
+      "id": 13,
+      "courseId": "c5",
+      "title": "Chương 1: Docker",
+      "position": 1
+    },
+    {
+      "id": 14,
+      "courseId": "c5",
+      "title": "Chương 2: Kubernetes",
+      "position": 2
+    }
+  ],
+  "lessons": [
+    {
+      "id": 1,
+      "chapterId": 1,
+      "title": "Giới thiệu HTML5",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 15,
+      "content": "HTML5 là phiên bản mới nhất của HTML...",
+      "media_url": "https://example.com/html5-intro",
+      "is_free_preview": true
+    },
+    {
+      "id": 2,
+      "chapterId": 1,
+      "title": "CSS3 & Flexbox",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 20,
+      "content": "CSS3 mang lại nhiều tính năng mạnh mẽ...",
+      "media_url": "https://example.com/css3-flexbox"
+    },
+    {
+      "id": 3,
+      "chapterId": 1,
+      "title": "Responsive Design",
+      "kind": "pdf",
+      "position": 3,
+      "duration_min": 10,
+      "content": "Thiết kế responsive cho mọi thiết bị...",
+      "media_url": "https://example.com/responsive.pdf"
+    },
+    {
+      "id": 4,
+      "chapterId": 2,
+      "title": "Biến & Kiểu dữ liệu",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 15,
+      "content": "JavaScript variables, types...",
+      "media_url": "https://example.com/js-variables"
+    },
+    {
+      "id": 5,
+      "chapterId": 2,
+      "title": "Hàm & Scope",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 20,
+      "content": "Functions, closures, scope...",
+      "media_url": "https://example.com/js-functions"
+    },
+    {
+      "id": 6,
+      "chapterId": 2,
+      "title": "Async/Await",
+      "kind": "text",
+      "position": 3,
+      "duration_min": 15,
+      "content": "Promise, async/await pattern..."
+    },
+    {
+      "id": 7,
+      "chapterId": 3,
+      "title": "Component & Props",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 25,
+      "content": "React components, props, state...",
+      "media_url": "https://example.com/react-components"
+    },
+    {
+      "id": 8,
+      "chapterId": 3,
+      "title": "Hooks useState/useEffect",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 30,
+      "content": "React hooks deep dive...",
+      "media_url": "https://example.com/react-hooks"
+    },
+    {
+      "id": 9,
+      "chapterId": 4,
+      "title": "Express.js Setup",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 20,
+      "content": "Setup Express server...",
+      "media_url": "https://example.com/express-setup"
+    },
+    {
+      "id": 10,
+      "chapterId": 4,
+      "title": "REST API Design",
+      "kind": "text",
+      "position": 2,
+      "duration_min": 15,
+      "content": "RESTful API best practices..."
+    },
+    {
+      "id": 11,
+      "chapterId": 5,
+      "title": "SELECT, INSERT, UPDATE, DELETE",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 25,
+      "content": "CRUD operations in SQL...",
+      "media_url": "https://example.com/sql-crud"
+    },
+    {
+      "id": 12,
+      "chapterId": 5,
+      "title": "JOIN & Subquery",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 30,
+      "content": "Complex queries...",
+      "media_url": "https://example.com/sql-joins"
+    },
+    {
+      "id": 13,
+      "chapterId": 6,
+      "title": "Normalization 1NF-3NF",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 20,
+      "content": "Database normalization...",
+      "media_url": "https://example.com/normalization"
+    },
+    {
+      "id": 14,
+      "chapterId": 6,
+      "title": "Index & Performance",
+      "kind": "pdf",
+      "position": 2,
+      "duration_min": 15,
+      "content": "Database indexing strategies...",
+      "media_url": "https://example.com/db-index.pdf"
+    },
+    {
+      "id": 15,
+      "chapterId": 8,
+      "title": "Python Syntax",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 20,
+      "content": "Python basics...",
+      "media_url": "https://example.com/python-syntax"
+    },
+    {
+      "id": 16,
+      "chapterId": 8,
+      "title": "Data Structures",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 25,
+      "content": "Lists, dicts, sets...",
+      "media_url": "https://example.com/python-ds"
+    },
+    {
+      "id": 17,
+      "chapterId": 9,
+      "title": "Pandas DataFrame",
+      "kind": "video",
+      "position": 1,
+      "duration_min": 30,
+      "content": "Pandas for data analysis...",
+      "media_url": "https://example.com/pandas-df"
+    },
+    {
+      "id": 18,
+      "chapterId": 9,
+      "title": "Data Visualization",
+      "kind": "video",
+      "position": 2,
+      "duration_min": 25,
+      "content": "Matplotlib, Seaborn...",
+      "media_url": "https://example.com/viz"
+    }
   ],
   "enrollments": [
-    { "courseId": "c1", "studentId": "u4", "score": 7.5 },
-    { "courseId": "c1", "studentId": "u5", "score": 8.0 },
-    { "courseId": "c2", "studentId": "u5", "score": 6.0 },
-    { "courseId": "c2", "studentId": "u6", "score": 9.0 }
+    {
+      "courseId": "c1",
+      "studentId": "u4",
+      "score": 7.5,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c1",
+      "studentId": "u5",
+      "score": 8,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c1",
+      "studentId": "u6",
+      "score": 6.5,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c1",
+      "studentId": "u7",
+      "score": 9,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c2",
+      "studentId": "u5",
+      "score": 6,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c2",
+      "studentId": "u6",
+      "score": 8.5,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c2",
+      "studentId": "u8",
+      "score": 7.5,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c3",
+      "studentId": "u4",
+      "score": 8,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c3",
+      "studentId": "u7",
+      "score": 9.5,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c4",
+      "studentId": "u6",
+      "score": 7,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c4",
+      "studentId": "u8",
+      "score": 8,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c5",
+      "studentId": "u5",
+      "score": 9,
+      "status": "ACTIVE"
+    },
+    {
+      "courseId": "c5",
+      "studentId": "u9",
+      "score": 8.5,
+      "status": "ACTIVE"
+    }
+  ],
+  "quizzes": [
+    {
+      "id": 1,
+      "courseId": "c1",
+      "title": "Quiz HTML/CSS",
+      "description": "Kiểm tra kiến thức HTML/CSS cơ bản",
+      "time_limit_min": 15,
+      "pass_score": 5,
+      "max_attempts": 3,
+      "show_answers": true
+    },
+    {
+      "id": 2,
+      "courseId": "c1",
+      "title": "Quiz JavaScript",
+      "description": "Kiểm tra JS cơ bản",
+      "time_limit_min": 20,
+      "pass_score": 6,
+      "max_attempts": 3,
+      "show_answers": true
+    },
+    {
+      "id": 3,
+      "courseId": "c2",
+      "title": "Quiz SQL cơ bản",
+      "description": "Kiểm tra SQL CRUD",
+      "time_limit_min": 20,
+      "pass_score": 5,
+      "max_attempts": 3,
+      "show_answers": true
+    },
+    {
+      "id": 4,
+      "courseId": "c3",
+      "title": "Quiz Python",
+      "description": "Python basics quiz",
+      "time_limit_min": 15,
+      "pass_score": 6,
+      "max_attempts": 3,
+      "show_answers": true
+    }
+  ],
+  "questions": [
+    {
+      "id": 1,
+      "quizId": 1,
+      "prompt": "Thẻ HTML nào dùng để tạo liên kết?",
+      "kind": "MCQ",
+      "options": [
+        "<a>",
+        "<link>",
+        "<href>",
+        "<url>"
+      ],
+      "answer": {
+        "index": 0
+      },
+      "points": 1
+    },
+    {
+      "id": 2,
+      "quizId": 1,
+      "prompt": "CSS property nào dùng để đổi màu chữ?",
+      "kind": "MCQ",
+      "options": [
+        "color",
+        "font-color",
+        "text-color",
+        "font"
+      ],
+      "answer": {
+        "index": 0
+      },
+      "points": 1
+    },
+    {
+      "id": 3,
+      "quizId": 1,
+      "prompt": "Flexbox property để căn giữa item?",
+      "kind": "MCQ",
+      "options": [
+        "justify-content: center",
+        "align-items: center",
+        "both a and b",
+        "text-align: center"
+      ],
+      "answer": {
+        "index": 2
+      },
+      "points": 1
+    },
+    {
+      "id": 4,
+      "quizId": 2,
+      "prompt": "Khai báo biến constant trong JS dùng từ khóa nào?",
+      "kind": "MCQ",
+      "options": [
+        "var",
+        "let",
+        "const",
+        "constant"
+      ],
+      "answer": {
+        "index": 2
+      },
+      "points": 1
+    },
+    {
+      "id": 5,
+      "quizId": 2,
+      "prompt": "Promise có mấy trạng thái?",
+      "kind": "MCQ",
+      "options": [
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "answer": {
+        "index": 1
+      },
+      "points": 1
+    },
+    {
+      "id": 6,
+      "quizId": 3,
+      "prompt": "SQL command để lấy dữ liệu?",
+      "kind": "MCQ",
+      "options": [
+        "GET",
+        "SELECT",
+        "FETCH",
+        "RETRIEVE"
+      ],
+      "answer": {
+        "index": 1
+      },
+      "points": 1
+    }
+  ],
+  "assignments": [
+    {
+      "id": 1,
+      "courseId": "c1",
+      "title": "Bài tập: Tạo trang web cá nhân",
+      "description": "Tạo một trang web đơn giản bằng HTML/CSS",
+      "max_score": 10,
+      "due_at": "2026-12-31T23:59:00"
+    },
+    {
+      "id": 2,
+      "courseId": "c2",
+      "title": "Bài tập: Thiết kế DB cho thư viện",
+      "description": "Thiết kế ERD và viết SQL tạo bảng",
+      "max_score": 10,
+      "due_at": "2026-12-31T23:59:00"
+    }
   ]
 }

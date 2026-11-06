@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập — miniLMS{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h1>Đăng nhập</h1>
+    <p class="muted">Chào mừng trở lại miniLMS.</p>
+
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+      <label>Email
+        <input type="email" name="email" value="{{ email }}" required autofocus>
+      </label>
+      <label>Mật khẩu
+        <input type="password" name="password" required>
+      </label>
+      <button type="submit" class="btn full">Đăng nhập</button>
+    </form>
+
+    <p class="auth-links">
+      <a href="{{ url_for('auth.forgot_password') }}">Quên mật khẩu?</a>
+      <span>·</span>
+      <a href="{{ url_for('auth.register') }}">Tạo tài khoản</a>
+    </p>
+
+    <div class="demo-box">
+      <p class="muted small">Tài khoản demo (mật khẩu <code>Lms@2026</code>):</p>
+      <ul class="small">
+        <li>admin@lms.test — Quản trị viên</li>
+        <li>an.gv@lms.test — Giảng viên</li>
+        <li>chi.sv@lms.test — Sinh viên</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

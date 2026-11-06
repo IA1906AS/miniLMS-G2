@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Chứng chỉ — miniLMS{% endblock %}
+{% block content %}
+<h1>Chứng chỉ của tôi</h1>
+{% if rows %}
+  <div class="grid two">
+    {% for row in rows %}
+      <article class="card cert-card">
+        <h3>{{ row.course.title }}</h3>
+        <p class="muted small">Mã: <code>{{ row.certificate.code }}</code></p>
+        <p class="muted small">Cấp ngày {{ row.certificate.issued_at.strftime('%d/%m/%Y') }}</p>
+        {% if row.certificate.final_score is not none %}
+          <p>Điểm cuối khoá: <strong>{{ row.certificate.final_score }}</strong></p>
+        {% endif %}
+        <a class="btn small" href="{{ url_for('student.certificate_detail', code=row.certificate.code) }}">Xem chứng chỉ</a>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ m.empty('Bạn chưa đạt chứng chỉ nào.') }}
+{% endif %}
+{% endblock %}

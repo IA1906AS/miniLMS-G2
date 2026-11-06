@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Báo cáo hệ thống — miniLMS{% endblock %}
+{% block content %}
+<h1>Báo cáo hệ thống</h1>
+
+<div class="subnav mb" style="margin-bottom: 1rem;">
+  <a class="btn" href="{{ url_for('admin.reports') }}">Tổng quan</a>
+  <a class="btn ghost" href="{{ url_for('admin.reports_courses') }}">Theo khóa học</a>
+  <a class="btn ghost" href="{{ url_for('admin.reports_users') }}">Theo người dùng</a>
+</div>
+
+<section class="grid four mt">
+  <article class="card stat-card">
+    <span class="stat-num">{{ stats.total_quiz_attempts }}</span>
+    <span class="muted">lượt làm quiz</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ stats.total_submissions }}</span>
+    <span class="muted">bài nộp</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ stats.total_certificates }}</span>
+    <span class="muted">chứng chỉ</span>
+  </article>
+  <article class="card stat-card">
+    <span class="stat-num">{{ stats.total_lesson_progress }}</span>
+    <span class="muted">tiến độ bài học</span>
+  </article>
+</section>
+
+<section class="card mt">
+  <h2>Top 10 khoá học theo lượt ghi danh</h2>
+  {% if top_courses %}
+    <table class="table">
+      <thead><tr><th>Khoá học</th><th>Lượt ghi danh</th></tr></thead>
+      <tbody>
+        {% for course, count in top_courses %}
+          <tr>
+            <td><a href="{{ url_for('main.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+            <td>{{ count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {{ m.empty('Chưa có dữ liệu.') }}
+  {% endif %}
+</section>
+
+<section class="card mt">
+  <h2>Người dùng theo vai trò</h2>
+  <ul class="meta">
+    {% for row in users_by_role %}
+      <li>{{ role_labels.get(row.role, row.role) }}: <strong>{{ row.count }}</strong></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

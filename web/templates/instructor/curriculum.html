@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Nội dung: {{ course.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.courses') }}">Giảng dạy</a> / {{ course.title }} / Nội dung
+</nav>
+
+<div class="section-head">
+  <h1>Chương trình: {{ course.title }}</h1>
+  <a class="btn ghost" href="{{ url_for('instructor.course_edit', course_id=course.id) }}">Sửa thông tin khoá</a>
+</div>
+
+{% for block in blocks %}
+  <section class="card mt">
+    <h3>{{ block.chapter.title }} <span class="muted small">({{ block.lessons|length }} bài)</span></h3>
+    {% if block.lessons %}
+      <ul class="plain-list">
+        {% for lesson in block.lessons %}
+          <li>
+            <span class="kind kind-{{ lesson.kind }}">{{ lesson.kind }}</span>
+            <strong>{{ lesson.title }}</strong>
+            <span class="muted small">{{ lesson.duration_min }} phút</span>
+            {% if lesson.is_free_preview %}<span class="pill free">Học thử</span>{% endif %}
+            <form method="post" action="{{ url_for('instructor.lesson_delete', lesson_id=lesson.id) }}" class="inline"
+                  onsubmit="return confirm('Xoá bài học này?');">
+              <button type="submit" class="link danger">Xoá</button>
+            </form>
+
+            <div class="attachments small">
+              <span class="muted">Tài liệu:</span>
+              {% for att in lesson.attachments %}
+                <a href="{{ url_for('files.download_attachment', attachment_id=att.id) }}">{{ att.title }}</a>
+                <form method="post" action="{{ url_for('files.delete_attachment', attachment_id=att.id) }}" class="inline"
+                      onsubmit="return confirm('Xoá tài liệu này?');">
+                  <button type="submit" class="link danger">×</button>
+                </form>
+              {% else %}
+                <span class="muted">chưa có</span>
+              {% endfor %}
+              <form method="post" action="{{ url_for('files.upload_attachment', lesson_id=lesson.id) }}"
+                    enctype="multipart/form-data" class="inline">
+                <input type="file" name="file" required>
+                <button type="submit" class="btn small">Tải lên</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ m.empty('Chương này chưa có bài học.') }}
+    {% endif %}
+
+    <form method="post" action="{{ url_for('instructor.lesson_create', chapter_id=block.chapter.id) }}" class="form-grid mt">
+      <label>Bài học mới
+        <input type="text" name="title" placeholder="Tên bài học" required>
+      </label>
+      <label>Loại
+        <select name="kind">
+          {% for k in ['text', 'video', 'pdf', 'slide', 'link'] %}
+            <option value="{{ k }}">{{ k }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Thời lượng (phút)
+        <input type="number" name="duration_min" min="0" value="0">
+      </label>
+      <label>URL media
+        <input type="url" name="media_url" placeholder="https://…">
+      </label>
+      <label class="check">
+        <input type="checkbox" name="is_free_preview" value="1"> Cho phép học thử
+      </label>
+      <button type="submit" class="btn small">+ Thêm bài</button>
+    </form>
+  </section>
+{% endfor %}
+
+<section class="card mt">
+  <h3>Thêm chương</h3>
+  <form method="post" action="{{ url_for('instructor.chapter_create', course_id=course.id) }}" class="form-grid">
+    <label>Tên chương
+      <input type="text" name="title" placeholder="Chương mới" required>
+    </label>
+    <button type="submit" class="btn small">+ Thêm chương</button>
+  </form>
+</section>
+{% endblock %}

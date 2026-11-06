@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bảng điểm — miniLMS{% endblock %}
+{% block content %}
+<h1>Bảng điểm của tôi</h1>
+
+<h2>Bài kiểm tra</h2>
+{% if quiz_rows %}
+  <table class="table">
+    <thead>
+      <tr><th>Khoá học</th><th>Số lần làm</th><th>Điểm cao nhất</th><th>Kết quả</th></tr>
+    </thead>
+    <tbody>
+      {% for row in quiz_rows %}
+        <tr>
+          <td>{{ row.course.title }}</td>
+          <td>{{ row.attempts|length }}</td>
+          <td>{{ row.best if row.best is not none else '—' }}</td>
+          <td>{% if row.attempts %}<span class="pill {{ 'ok' if row.passed else 'warn' }}">{{ 'Đạt' if row.passed else 'Chưa đạt' }}</span>{% else %}<span class="muted">Chưa làm</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Bạn chưa có bài kiểm tra nào.') }}
+{% endif %}
+
+<h2 class="mt">Bài tập đã nộp</h2>
+{% if submission_rows %}
+  <table class="table">
+    <thead>
+      <tr><th>Bài tập</th><th>Nộp lúc</th><th>Điểm</th><th>Nhận xét</th></tr>
+    </thead>
+    <tbody>
+      {% for row in submission_rows %}
+        <tr>
+          <td><a href="{{ url_for('quiz.assignment_detail', assignment_id=row.assignment.id) }}">{{ row.assignment.title }}</a></td>
+          <td>{{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ row.submission.score if row.submission.score is not none else 'Chưa chấm' }}</td>
+          <td class="muted small">{{ row.submission.feedback or '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Bạn chưa nộp bài tập nào.') }}
+{% endif %}
+{% endblock %}

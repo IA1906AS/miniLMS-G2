@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Học: {{ course.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('student.my_courses') }}">Khoá của tôi</a> / {{ course.title }}</nav>
+
+<section class="learn-layout">
+  <aside class="learn-sidebar card">
+    <h2>{{ course.title }}</h2>
+    {{ m.progress(percent, completed, total) }}
+    {% for block in chapters %}
+      <div class="chapter-block">
+        <h4>{{ block.chapter.title }}</h4>
+        <ul class="lesson-list compact">
+          {% for lesson in block.lessons %}
+            <li class="{% if lesson.id in done %}is-done{% endif %}">
+              <a href="{{ url_for('student.learn_lesson', course_id=course.id, lesson_id=lesson.id) }}">
+                {% if lesson.id in done %}<span class="tick">✓</span>{% else %}<span class="dot"></span>{% endif %}
+                {{ lesson.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </aside>
+
+  <div class="learn-main">
+    <div class="card">
+      <h2>Bắt đầu học</h2>
+      {% if first_lesson %}
+        <p class="muted">Chọn một bài ở cột bên trái, hoặc bắt đầu từ bài đầu tiên.</p>
+        <a class="btn" href="{{ url_for('student.learn_lesson', course_id=course.id, lesson_id=first_lesson.id) }}">
+          Vào bài: {{ first_lesson.title }}
+        </a>
+      {% else %}
+        <p class="empty">Khoá học chưa có bài học nào.</p>
+      {% endif %}
+    </div>
+
+    {% if quizzes %}
+      <div class="card mt">
+        <h3>Bài kiểm tra</h3>
+        <ul class="plain-list">
+          {% for quiz in quizzes %}
+            <li>
+              <a href="{{ url_for('quiz.intro', quiz_id=quiz.id) }}">{{ quiz.title }}</a>
+              <span class="muted small">{{ quiz.time_limit_min }} phút · đạt {{ quiz.pass_score }}/10</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if assignments %}
+      <div class="card mt">
+        <h3>Bài tập</h3>
+        <ul class="plain-list">
+          {% for a in assignments %}
+            <li>
+              <a href="{{ url_for('quiz.assignment_detail', assignment_id=a.id) }}">{{ a.title }}</a>
+              <span class="muted small">Tối đa {{ a.max_score }} điểm{% if a.due_at %} · hạn {{ a.due_at.strftime('%d/%m/%Y %H:%M') }}{% endif %}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ course.title }} - Diễn đàn — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('student.forum_index') }}">Diễn đàn</a> / {{ course.title }}
+</nav>
+
+<h1>{{ course.title }} - Diễn đàn</h1>
+
+<div class="card mt">
+  <h3>Tạo chủ đề mới</h3>
+  <form method="post" action="{{ url_for('student.forum_topic_create', course_id=course.id) }}" class="form-card">
+    <label>Tiêu đề *
+      <input type="text" name="title" required>
+    </label>
+    <label>Nội dung *
+      <textarea name="content" rows="4" required></textarea>
+    </label>
+    <button type="submit" class="btn">Tạo chủ đề</button>
+  </form>
+</div>
+
+{% if topics %}
+  <table class="table mt">
+    <thead><tr><th>Chủ đề</th><th>Tác giả</th><th>Trả lời</th><th>Cập nhật</th></tr></thead>
+    <tbody>
+      {% for item in topics %}
+        <tr>
+          <td>
+            <a href="{{ url_for('student.forum_topic', course_id=course.id, topic_id=item.topic.id) }}">
+              {% if item.topic.pinned %}<span class="pill free">Ghim</span>{% endif %}
+              {% if item.topic.locked %}<span class="pill draft">Khoá</span>{% endif %}
+              {{ item.topic.title }}
+            </a>
+          </td>
+          <td class="muted small">
+            {% if item.author %}
+              <a href="{{ url_for('main.member_profile', user_id=item.author.id) }}">{{ item.author.display_name }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ item.replies }}</td>
+          <td class="muted small">{{ item.topic.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có chủ đề nào. Hãy tạo chủ đề đầu tiên!') }}
+{% endif %}
+{% endblock %}

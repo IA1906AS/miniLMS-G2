@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký — miniLMS{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h1>Đăng ký tài khoản</h1>
+    <p class="muted">Tạo tài khoản mới để bắt đầu học.</p>
+
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{{ url_for('auth.register') }}">
+      <label>Họ tên
+        <input type="text" name="full_name" value="{{ full_name }}">
+      </label>
+      <label>Email
+        <input type="email" name="email" value="{{ email }}" required>
+      </label>
+      <label>Mật khẩu
+        <input type="password" name="password" required minlength="8">
+      </label>
+      <label>Xác nhận mật khẩu
+        <input type="password" name="confirm_password" required minlength="8">
+      </label>
+      <label class="check">
+        <input type="checkbox" name="role" value="INSTRUCTOR" {% if want_instructor %}checked{% endif %}>
+        Đăng ký với tư cách giảng viên
+      </label>
+      <button type="submit" class="btn full">Tạo tài khoản</button>
+    </form>
+
+    <p class="auth-links">Đã có tài khoản? <a href="{{ url_for('auth.login') }}">Đăng nhập</a></p>
+  </div>
+</section>
+{% endblock %}

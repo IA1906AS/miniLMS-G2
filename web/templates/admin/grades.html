@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Bảng điểm toàn hệ thống — Admin{% endblock %}
+{% block content %}
+<h1>Bảng điểm toàn hệ thống</h1>
+
+{% if conflict %}
+  <div class="flash error">⚠ {{ conflict }}</div>
+{% endif %}
+
+<h2>Quiz Attempts</h2>
+{% if attempts %}
+  <table class="table">
+    <thead><tr><th>Học viên</th><th>Quiz</th><th>Khóa học</th><th>Điểm</th><th>Kết quả</th><th>Nộp lúc</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for attempt, quiz, course, student in attempts %}
+        <tr>
+          <td><a href="{{ url_for('admin.user_detail', user_id=student.id) }}">{{ student.display_name }}</a></td>
+          <td>{{ quiz.title }}</td>
+          <td>{{ course.title }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.grade_quiz_adjust', attempt_id=attempt.id) }}" class="grade-form">
+              <input type="hidden" name="version" value="{{ attempt.version }}">
+              <input type="number" name="score" step="0.5" min="0" max="10" value="{{ attempt.score }}" required style="width: 60px;">
+              <button type="submit" class="btn small">Lưu</button>
+              <span class="muted small">v{{ attempt.version }}</span>
+            </form>
+          </td>
+          <td><span class="pill {{ 'ok' if attempt.passed else 'warn' }}">{{ 'Đạt' if attempt.passed else 'Chưa đạt' }}</span></td>
+          <td class="muted small">{{ attempt.submitted_at.strftime('%d/%m/%Y %H:%M') if attempt.submitted_at else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có lượt làm quiz nào.') }}
+{% endif %}
+
+<h2 class="mt">Assignment Submissions</h2>
+{% if submissions %}
+  <table class="table">
+    <thead><tr><th>Học viên</th><th>Bài tập</th><th>Khóa học</th><th>Điểm</th><th>Nộp lúc</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for submission, assignment, course, student in submissions %}
+        <tr>
+          <td><a href="{{ url_for('admin.user_detail', user_id=student.id) }}">{{ student.display_name }}</a></td>
+          <td>{{ assignment.title }}</td>
+          <td>{{ course.title }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.grade_assignment_adjust', submission_id=submission.id) }}" class="grade-form">
+              <input type="hidden" name="version" value="{{ submission.version }}">
+              <input type="number" name="score" step="0.5" min="0" max="{{ assignment.max_score }}" value="{{ submission.score if submission.score is not none else '' }}" required style="width: 60px;">
+              <input type="text" name="feedback" placeholder="Nhận xét" value="{{ submission.feedback or '' }}" style="width: 120px;">
+              <button type="submit" class="btn small">Lưu</button>
+              <span class="muted small">v{{ submission.version }}</span>
+            </form>
+          </td>
+          <td class="muted small">{{ submission.submitted_at.strftime('%d/%m/%Y %H:%M') if submission.submitted_at else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có bài nộp nào.') }}
+{% endif %}
+{% endblock %}

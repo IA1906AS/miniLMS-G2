@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Quản lý người dùng — miniLMS{% endblock %}
+{% block content %}
+<h1>Quản lý người dùng</h1>
+
+{% if users %}
+  <table class="table">
+    <thead><tr><th>ID</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td><a href="{{ url_for('admin.user_detail', user_id=user.id) }}">{{ user.display_name }}</a></td>
+          <td>{{ user.email }}</td>
+          <td><span class="badge role-{{ user.role|lower }}">{{ role_labels.get(user.role, user.role) }}</span></td>
+          <td><span class="pill {{ 'ok' if user.status == 'ACTIVE' else 'danger' }}">{{ user.status }}</span></td>
+          <td class="muted small">{{ user.created_at.strftime('%d/%m/%Y') if user.created_at else '—' }}</td>
+          <td class="row-actions">
+            {% if user.status == 'ACTIVE' %}
+              <form method="post" action="{{ url_for('admin.user_lock', user_id=user.id) }}" class="inline" onsubmit="return confirm('Khóa tài khoản này?');">
+                <button type="submit" class="link danger">Khóa</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('admin.user_unlock', user_id=user.id) }}" class="inline">
+                <button type="submit" class="link">Mở khóa</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('admin.user_change_role', user_id=user.id) }}" class="inline">
+              <select name="role" onchange="this.form.submit()">
+                <option value="ADMIN" {% if user.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                <option value="INSTRUCTOR" {% if user.role == 'INSTRUCTOR' %}selected{% endif %}>Giảng viên</option>
+                <option value="STUDENT" {% if user.role == 'STUDENT' %}selected{% endif %}>Sinh viên</option>
+              </select>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có người dùng nào.') }}
+{% endif %}
+{% endblock %}

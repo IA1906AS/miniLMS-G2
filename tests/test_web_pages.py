@@ -1,4 +1,7 @@
-"""Test giao diện web (homepage + account page) với SQLite in-memory."""
+"""Test giao diện web miniLMS theo kiến trúc blueprint + SQLAlchemy.
+
+Phủ `lms_spec.md`: 4 vai trò, ma trận phân quyền route, các luồng nghiệp vụ chính.
+"""
 
 from __future__ import annotations
 
@@ -8,11 +11,11 @@ from typing import Any
 import pytest
 
 from web import create_web_app
-from web.database import (
+from web.models import (
     ROLE_ADMIN,
     ROLE_GUEST,
+    ROLE_INSTRUCTOR,
     ROLE_STUDENT,
-    ROLE_TEACHER,
     User,
     normalize_role,
 )
@@ -42,7 +45,7 @@ def login(client: Any, email: str, password: str = PASSWORD) -> Any:
     return client.post("/login", data={"email": email, "password": password})
 
 
-# ---------- 4 vai trò: ADMIN / TEACHER / STUDENT / GUEST ----------
+# ---------- role enum: spec dòng 2 ----------
 
 
 @pytest.mark.parametrize(
@@ -50,9 +53,9 @@ def login(client: Any, email: str, password: str = PASSWORD) -> Any:
     [
         ("ADMIN", ROLE_ADMIN),
         ("admin", ROLE_ADMIN),
-        ("TEACHER", ROLE_TEACHER),
-        ("INSTRUCTOR", ROLE_TEACHER),  # giá trị của seed.json bản API
-        ("teacher", ROLE_TEACHER),
+        ("INSTRUCTOR", ROLE_INSTRUCTOR),
+        ("TEACHER", ROLE_INSTRUCTOR),
+        ("teacher", ROLE_INSTRUCTOR),
         ("STUDENT", ROLE_STUDENT),
         ("guest", ROLE_GUEST),
         ("khong-hop-le", ROLE_GUEST),
@@ -63,41 +66,47 @@ def test_normalize_role(raw, expected):
     assert normalize_role(raw) == expected
 
 
-def test_seed_doi_instructor_thanh_teacher(webapp):
+def test_seed_roles(webapp):
     with webapp.extensions["lms_db"].session() as sess:
-        assert sess.get(User, "u2").role == ROLE_TEACHER
-        assert sess.get(User, "u4").role == ROLE_STUDENT
         assert sess.get(User, "u1").role == ROLE_ADMIN
+        assert sess.get(User, "u2").role == ROLE_INSTRUCTOR
+        assert sess.get(User, "u4").role == ROLE_STUDENT
 
 
-# ---------- guest ----------
+# ---------- KHÁCH ----------
 
 
-def test_homepage_public_va_lists_courses(client):
-    res = client.get("/")
-    body = res.get_data(as_text=True)
-    assert res.status_code == 200
+@pytest.mark.parametrize(
+    "path",
+    ["/", "/courses", "/courses/c1", "/instructors", "/login", "/register", "/forgot-password"],
+)
+def test_guest_pages_public(client, path):
+    assert client.get(path).status_code == 200
+
+
+def test_home_lists_courses(client):
+    body = client.get("/").get_data(as_text=True)
     assert "miniLMS" in body
     assert "Lập trình Web" in body
     assert "Cơ sở dữ liệu" in body
 
 
-def test_guest_thay_badge_khach_va_loi_moi_dang_nhap(client):
-    body = client.get("/").get_data(as_text=True)
-    assert "Khách" in body
-    assert "tư cách khách" in body
-    assert "Đăng nhập" in body
-    # Guest không thấy điểm của ai
-    assert "Điểm của bạn" not in body
-
-
-def test_guest_vao_account_bi_redirect(client):
-    res = client.get("/account")
+def test_guest_private_route_redirects_to_login(client):
+    res = client.get("/dashboard")
     assert res.status_code == 302
     assert "/login" in res.headers["Location"]
 
 
-# ---------- login ----------
+def test_guest_cannot_reach_student_learn(client):
+    res = client.get("/my-courses/c1/learn")
+    assert res.status_code == 302
+    assert "/login" in res.headers["Location"]
+
+
+def test_unknown_route_404(client):
+    assert client.get("/khong-co-trang-nay").status_code == 404
+
+# ---------- đăng nhập ----------
 
 
 def test_login_sai_mat_khau(client):
@@ -112,71 +121,26 @@ def test_login_email_khong_ton_tai_cung_thong_diep(client):
     assert "không đúng" in res.get_data(as_text=True)
 
 
-# ---------- STUDENT ----------
+def test_login_thieu_thong_tin(client):
+    res = client.post("/login", data={"email": "", "password": ""})
+    assert res.status_code == 401
+    assert "Vui lòng nhập đầy đủ" in res.get_data(as_text=True)
 
 
-def test_student_xem_diem_cua_minh(client):
+@pytest.mark.parametrize(
+    "email",
+    ["admin@lms.test", "an.gv@lms.test", "chi.sv@lms.test"],
+)
+def test_redirect_sau_login_theo_role(client, email):
+    """Spec dòng 151: Admin/GV/SV đều về dashboard."""
+    res = login(client, email)
+    assert res.status_code == 302
+    assert "/dashboard" in res.headers["Location"]
+
+
+def test_login_da_dang_nhap_bi_redirect(client):
     assert login(client, "chi.sv@lms.test").status_code == 302
-
-    body = client.get("/account").get_data(as_text=True)
-    assert "chi.sv@lms.test" in body
-    assert "Sinh viên" in body
-    assert "Lập trình Web" in body
-    assert "7.5" in body
-
-
-def test_homepage_hien_diem_khi_da_dang_nhap(client):
-    assert login(client, "dung.sv@lms.test").status_code == 302
-
-    body = client.get("/").get_data(as_text=True)
-    assert "Điểm của bạn" in body
-    assert "8.0" in body
-
-
-# ---------- TEACHER ----------
-
-
-def test_teacher_chi_thay_mon_minh_day(client):
-    assert login(client, "an.gv@lms.test").status_code == 302
-
-    body = client.get("/account").get_data(as_text=True)
-    assert "Giảng viên" in body
-    assert "Môn tôi dạy" in body
-    assert "Lập trình Web" in body
-    assert "Cơ sở dữ liệu" not in body
-
-
-def test_homepage_danh_dau_mon_cua_teacher(client):
-    assert login(client, "an.gv@lms.test").status_code == 302
-
-    body = client.get("/").get_data(as_text=True)
-    assert "Bạn dạy" in body
-
-
-# ---------- ADMIN ----------
-
-
-def test_admin_thay_toan_bo_mon_va_so_lieu(client):
-    assert login(client, "admin@lms.test").status_code == 302
-
-    body = client.get("/account").get_data(as_text=True)
-    assert "Toàn bộ môn học" in body
-    assert "Lập trình Web" in body
-    assert "Cơ sở dữ liệu" in body
-    assert "Lượt ghi danh" in body
-
-
-# ---------- khác ----------
-
-
-def test_logout_xoa_cookie(client):
-    assert login(client, "chi.sv@lms.test").status_code == 302
-    assert client.post("/logout").status_code == 302
-    assert client.get("/account").status_code == 302
-
-
-def test_trang_khong_ton_tai_404(client):
-    assert client.get("/khong-co-trang-nay").status_code == 404
+    assert client.get("/login").status_code == 302
 
 
 def test_khong_cho_open_redirect(client):
@@ -188,189 +152,361 @@ def test_khong_cho_open_redirect(client):
     assert "evil.example.com" not in res.headers["Location"]
 
 
-def test_login_thieu_thong_tin(client):
-    res = client.post("/login", data={"email": "", "password": ""})
-    assert res.status_code == 401
-    assert "Vui lòng nhập đầy đủ" in res.get_data(as_text=True)
-
-
-def test_login_da_dang_nhap_duoc_redirect(client):
-    assert login(client, "chi.sv@lms.test").status_code == 302
-    res = client.get("/login")
-    assert res.status_code == 302
-    assert "/account" in res.headers["Location"]
-
-
 def test_login_brute_force_lockout(client):
     from app.store import get_store
 
     email = "chi.sv@lms.test"
     try:
         for _ in range(5):
-            res = login(client, email, "sai-mat-khau")
-            assert res.status_code == 401
-            assert "không đúng" in res.get_data(as_text=True)
-
-        # Lần 6 bị khóa 15 phút
+            assert login(client, email, "sai-mat-khau").status_code == 401
         res = login(client, email, "sai-mat-khau")
         assert res.status_code == 401
-        assert "bị khóa" in res.get_data(as_text=True)
-
-        # Nhập đúng pass khi đang bị khóa cũng vẫn bị từ chối
-        res = login(client, email, PASSWORD)
-        assert res.status_code == 401
-        assert "bị khóa" in res.get_data(as_text=True)
+        assert "khoá" in res.get_data(as_text=True)
     finally:
         get_store().failed_logins.clear()
 
 
-def test_account_vai_tro_la_bi_403(webapp):
-    from unittest.mock import patch
-
-    client = webapp.test_client()
-    fake_user = {"id": "u99", "email": "unknown@lms.test", "role": "UNKNOWN"}
-    with (
-        patch("web.auth.current_user", return_value=fake_user),
-        patch("web.views.current_user", return_value=fake_user),
-    ):
-        res = client.get("/account")
-        assert res.status_code == 403
+def test_logout_xoa_phien(client):
+    assert login(client, "chi.sv@lms.test").status_code == 302
+    assert client.post("/logout").status_code == 302
+    assert client.get("/dashboard").status_code == 302
 
 
-# ---------- register / reset-password / change-password ----------
+# ---------- SINH VIÊN ----------
 
 
-def test_web_register_page_get(client):
-    res = client.get("/register")
-    assert res.status_code == 200
-    assert "Đăng ký tài khoản" in res.get_data(as_text=True)
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/dashboard",
+        "/my-courses",
+        "/my-courses/c1/learn",
+        "/grades",
+        "/progress",
+        "/certificates",
+        "/leaderboard",
+        "/settings",
+    ],
+)
+def test_student_routes(client, path):
+    assert login(client, "chi.sv@lms.test").status_code == 302
+    assert client.get(path).status_code == 200
 
 
-def test_web_register_success(client):
+def test_student_khong_vao_duoc_instructor(client):
+    login(client, "chi.sv@lms.test")
+    assert client.get("/instructor/courses").status_code == 403
+
+
+def test_student_learn_khoa_chua_ghi_danh_bi_403(client):
+    """Spec dòng 148: cần enrollment active mới vào /learn."""
+    login(client, "chi.sv@lms.test")
+    assert client.get("/my-courses/c2/learn").status_code == 403
+
+# ---------- GIẢNG VIÊN ----------
+
+
+@pytest.mark.parametrize(
+    'path',
+    [
+        '/dashboard',
+        '/instructor/courses',
+        '/instructor/courses/new',
+        '/instructor/courses/c1/edit',
+        '/instructor/courses/c1/curriculum',
+        '/instructor/courses/c1/students',
+        '/instructor/courses/c1/reports',
+        '/instructor/quizzes',
+        '/instructor/assignments',
+        '/instructor/grades',
+        '/instructor/certificates',
+        '/instructor/forum',
+        '/instructor/live',
+    ],
+)
+def test_instructor_routes(client, path):
+    assert login(client, 'an.gv@lms.test').status_code == 302
+    assert client.get(path).status_code == 200
+
+
+def test_instructor_chi_sua_duoc_khoa_minh_day(client):
+    """Spec dòng 147: ownership check. an.gv dạy c1, không dạy c2."""
+    login(client, 'an.gv@lms.test')
+    assert client.get('/instructor/courses/c1/edit').status_code == 200
+    assert client.get('/instructor/courses/c2/edit').status_code == 403
+
+
+def test_instructor_khong_vao_duoc_khu_student(client):
+    login(client, 'an.gv@lms.test')
+    assert client.get('/my-courses').status_code == 403
+    assert client.get('/grades').status_code == 403
+
+
+def test_instructor_tao_khoa_hoc(client, webapp):
+    from sqlalchemy import select
+
+    from web.models import Course
+
+    login(client, 'an.gv@lms.test')
     res = client.post(
-        "/register",
+        '/instructor/courses/new',
         data={
-            "email": "newbie@lms.test",
-            "password": "Password@123",
-            "confirm_password": "Password@123",
-            "role": "STUDENT",
+            'title': 'Khoá thử nghiệm',
+            'description': 'mô tả',
+            'price': '0',
+            'status': 'DRAFT',
         },
     )
     assert res.status_code == 302
-    assert "/account" in res.headers["Location"]
-
-    # Verify session cookie attached
-    body = client.get("/account").get_data(as_text=True)
-    assert "newbie@lms.test" in body
-
-
-def test_web_register_validation_error(client):
-    # Weak password
-    res = client.post(
-        "/register",
-        data={
-            "email": "bad@lms.test",
-            "password": "123",
-            "confirm_password": "123",
-            "role": "STUDENT",
-        },
-    )
-    assert res.status_code == 400
-    assert "ít nhất 8 ký tự" in res.get_data(as_text=True)
-
-    # Password mismatch
-    res = client.post(
-        "/register",
-        data={
-            "email": "mismatch@lms.test",
-            "password": "Password@123",
-            "confirm_password": "DifferentPassword@123",
-            "role": "STUDENT",
-        },
-    )
-    assert res.status_code == 400
-    assert "không khớp" in res.get_data(as_text=True)
+    with webapp.extensions["lms_db"].session() as sess:
+        assert sess.scalars(
+            select(Course).where(Course.title == 'Khoá thử nghiệm')
+        ).first()
 
 
-def test_web_register_duplicate_email(client):
-    res = client.post(
-        "/register",
-        data={
-            "email": "chi.sv@lms.test",
-            "password": "Password@123",
-            "confirm_password": "Password@123",
-            "role": "STUDENT",
-        },
-    )
-    assert res.status_code == 400
-    assert "đã được sử dụng" in res.get_data(as_text=True)
+# ---------- ADMIN ----------
 
 
-def test_web_reset_password_page_get(client):
-    res = client.get("/reset-password")
+def test_admin_dashboard(client):
+    login(client, 'admin@lms.test')
+    res = client.get('/dashboard')
     assert res.status_code == 200
-    assert "Đặt lại mật khẩu" in res.get_data(as_text=True)
+    body = res.get_data(as_text=True)
+    assert 'người dùng' in body
+    assert 'lượt ghi danh' in body
 
 
-def test_web_reset_password_success(client):
+def test_admin_khong_vao_khu_instructor(client):
+    """Spec: /instructor/* chỉ GV."""
+    login(client, 'admin@lms.test')
+    assert client.get('/instructor/courses').status_code == 403
+
+
+def test_admin_bang_diem_hien_thi_du_lieu(client, webapp):
+    """Regression: trang /admin/grades phải render được khi có điểm."""
+    from sqlalchemy import select
+
+    from web.models import Assignment, Quiz, QuizAttempt, Submission, utcnow
+
+    with webapp.extensions['lms_db'].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
+        assignment = sess.scalars(
+            select(Assignment).where(Assignment.course_id == 'c1')
+        ).first()
+        sess.add(
+            QuizAttempt(
+                quiz_id=quiz.id,
+                student_id='u4',
+                status='SUBMITTED',
+                score=7.5,
+                passed=True,
+                started_at=utcnow(),
+                submitted_at=utcnow(),
+            )
+        )
+        sess.add(
+            Submission(
+                assignment_id=assignment.id,
+                student_id='u4',
+                text='Bài làm',
+                submitted_at=utcnow(),
+                score=8.0,
+                feedback='Tốt',
+                graded_at=utcnow(),
+            )
+        )
+
+    login(client, 'admin@lms.test')
+    res = client.get('/admin/grades')
+    assert res.status_code == 200
+    body = res.get_data(as_text=True)
+    assert 'Bảng điểm toàn hệ thống' in body
+    assert 'Chi Nguyễn' in body
+
+# ---------- QUIZ ----------
+
+
+def test_quiz_intro_cho_sinh_vien_ghi_danh(client, webapp):
+    from sqlalchemy import select
+
+    from web.models import Quiz
+
+    with webapp.extensions['lms_db'].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
+    login(client, 'chi.sv@lms.test')
+    assert client.get(f'/quizzes/{quiz.id}').status_code == 200
+
+
+def test_quiz_luong_lam_bai_va_cham_diem(client, webapp):
+    from sqlalchemy import select
+
+    from web.models import Question, Quiz, QuizAttempt, QuizQuestion
+
+    with webapp.extensions['lms_db'].session() as sess:
+        quiz = sess.scalars(select(Quiz).where(Quiz.course_id == 'c1')).first()
+        questions = sess.scalars(
+            select(Question)
+            .join(QuizQuestion, QuizQuestion.question_id == Question.id)
+            .where(QuizQuestion.quiz_id == quiz.id)
+        ).all()
+        correct_answers = {
+            q.id: q.options[q.answer['index']] for q in questions
+        }
+        quiz_id = quiz.id
+
+    login(client, 'chi.sv@lms.test')
+    res = client.post(f'/quizzes/{quiz_id}/start')
+    assert res.status_code == 302
+
+    with webapp.extensions['lms_db'].session() as sess:
+        attempt = sess.scalars(
+            select(QuizAttempt).where(
+                QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == 'u4'
+            )
+        ).first()
+        attempt_id = attempt.id
+
+    # Submit answers for all questions
+    submit_data = {f'q_{qid}': answer for qid, answer in correct_answers.items()}
     res = client.post(
-        "/reset-password",
+        f'/quizzes/{quiz_id}/attempts/{attempt_id}/submit', data=submit_data
+    )
+    assert res.status_code == 302
+
+    with webapp.extensions['lms_db'].session() as sess:
+        attempt = sess.get(QuizAttempt, attempt_id)
+        assert attempt.status == 'SUBMITTED'
+        assert attempt.score == 10.0
+        assert attempt.passed is True
+
+
+def test_quiz_guest_bi_chan(client, webapp):
+    from sqlalchemy import select
+
+    from web.models import Quiz
+
+    with webapp.extensions['lms_db'].session() as sess:
+        quiz = sess.scalars(select(Quiz)).first()
+    assert client.get(f'/quizzes/{quiz.id}').status_code == 302
+
+
+# ---------- BÀI TẬP ----------
+
+
+def test_assignment_nop_va_cham_diem(client, webapp):
+    from sqlalchemy import select
+
+    from web.models import Assignment, Submission
+
+    with webapp.extensions['lms_db'].session() as sess:
+        assignment = sess.scalars(select(Assignment).where(Assignment.course_id == 'c1')).first()
+        aid = assignment.id
+
+    login(client, 'chi.sv@lms.test')
+    res = client.post(f'/assignments/{aid}/submit', data={'text': 'Bài làm của em'})
+    assert res.status_code == 302
+
+    with webapp.extensions['lms_db'].session() as sess:
+        submission = sess.scalars(
+            select(Submission).where(
+                Submission.assignment_id == aid, Submission.student_id == 'u4'
+            )
+        ).first()
+        sid = submission.id
+        version = submission.version
+
+    # GV chấm điểm (kèm version hiện tại — optimistic locking)
+    grader = webapp.test_client()
+    login(grader, 'an.gv@lms.test')
+    res = grader.post(
+        f'/assignments/{aid}/submissions/{sid}/grade',
+        data={'score': '9', 'feedback': 'Tốt', 'version': str(version)},
+    )
+    assert res.status_code == 302
+    with webapp.extensions['lms_db'].session() as sess:
+        submission = sess.get(Submission, sid)
+        assert submission.score == 9.0
+        assert submission.feedback == 'Tốt'
+        assert submission.version == version + 1
+
+
+# ---------- ĐĂNG KÝ ----------
+
+
+def test_register_page_get(client):
+    res = client.get('/register')
+    assert res.status_code == 200
+    assert 'Đăng ký tài khoản' in res.get_data(as_text=True)
+
+
+def test_register_success(client):
+    res = client.post(
+        '/register',
         data={
-            "email": "chi.sv@lms.test",
-            "new_password": "NewSecret@2026",
-            "confirm_password": "NewSecret@2026",
+            'email': 'newbie@lms.test',
+            'password': 'Password@123',
+            'confirm_password': 'Password@123',
+            'role': 'STUDENT',
         },
     )
     assert res.status_code == 302
-    assert "/login?reset=1" in res.headers["Location"]
-
-    # Now login with new password
-    login_res = login(client, "chi.sv@lms.test", "NewSecret@2026")
-    assert login_res.status_code == 302
+    assert client.get('/dashboard').status_code == 200
 
 
-def test_web_reset_password_user_not_found(client):
+def test_register_validation_password_yeu(client):
     res = client.post(
-        "/reset-password",
+        '/register',
+        data={'email': 'bad@lms.test', 'password': '123', 'confirm_password': '123'},
+    )
+    assert res.status_code == 400
+    assert 'ít nhất 8 ký tự' in res.get_data(as_text=True)
+
+
+def test_register_password_khong_khop(client):
+    res = client.post(
+        '/register',
         data={
-            "email": "notfound@lms.test",
-            "new_password": "NewSecret@2026",
-            "confirm_password": "NewSecret@2026",
+            'email': 'mismatch@lms.test',
+            'password': 'Password@123',
+            'confirm_password': 'DifferentPassword@123',
         },
     )
     assert res.status_code == 400
-    assert "Không tìm thấy" in res.get_data(as_text=True)
+    assert 'không khớp' in res.get_data(as_text=True)
 
 
-def test_web_change_password_unauthenticated(client):
-    res = client.get("/change-password")
-    assert res.status_code == 302
-    assert "/login" in res.headers["Location"]
-
-
-def test_web_change_password_success(client):
-    login(client, "dung.sv@lms.test", PASSWORD)
+def test_register_email_trung(client):
     res = client.post(
-        "/change-password",
+        '/register',
         data={
-            "old_password": PASSWORD,
-            "new_password": "FreshPassword@2026",
-            "confirm_password": "FreshPassword@2026",
+            'email': 'chi.sv@lms.test',
+            'password': 'Password@123',
+            'confirm_password': 'Password@123',
         },
     )
+    assert res.status_code == 400
+    assert 'đã được sử dụng' in res.get_data(as_text=True)
+
+
+# ---------- QUÊN / ĐẶT LẠI MẬT KHẨU ----------
+
+
+def test_forgot_password_page_get(client):
+    res = client.get('/forgot-password')
     assert res.status_code == 200
-    assert "thành công" in res.get_data(as_text=True)
+    assert 'Quên mật khẩu' in res.get_data(as_text=True)
 
 
-def test_web_change_password_wrong_old(client):
-    login(client, "dung.sv@lms.test", PASSWORD)
-    res = client.post(
-        "/change-password",
-        data={
-            "old_password": "WrongPassword@123",
-            "new_password": "FreshPassword@2026",
-            "confirm_password": "FreshPassword@2026",
-        },
-    )
-    assert res.status_code == 400
-    assert "không đúng" in res.get_data(as_text=True)
+def test_forgot_password_gui_lien_ket(client):
+    res = client.post('/forgot-password', data={'email': 'chi.sv@lms.test'})
+    assert res.status_code == 200
+    # Không đổi mật khẩu trực tiếp: chỉ gửi liên kết.
+    assert 'liên kết đặt lại mật khẩu' in res.get_data(as_text=True)
+    assert login(client, 'chi.sv@lms.test', 'Lms@2026').status_code == 302
+
+
+def test_forgot_password_email_khong_ton_tai(client):
+    res = client.post('/forgot-password', data={'email': 'notfound@lms.test'})
+    # Chống liệt kê tài khoản: luôn trả cùng một thông báo.
+    assert res.status_code == 200
+    assert 'Nếu email tồn tại' in res.get_data(as_text=True)

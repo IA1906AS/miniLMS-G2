@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Quản lý khoá học — miniLMS{% endblock %}
+{% block content %}
+<h1>Quản lý khoá học (Admin)</h1>
+
+{% if courses %}
+  <table class="table">
+    <thead><tr><th>Khoá học</th><th>Giảng viên</th><th>Trạng thái</th><th>Giá</th><th>Học viên</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for course in courses %}
+        <tr>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ instructor.display_name if instructor else '—' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.course_status', course_id=course.id) }}" class="inline">
+              <select name="status" onchange="this.form.submit()">
+                <option value="DRAFT" {% if course.status == 'DRAFT' %}selected{% endif %}>Nháp</option>
+                <option value="PUBLISHED" {% if course.status == 'PUBLISHED' %}selected{% endif %}>Xuất bản</option>
+                <option value="HIDDEN" {% if course.status == 'HIDDEN' %}selected{% endif %}>Ẩn</option>
+              </select>
+            </form>
+          </td>
+          <td>{{ '{:,.0f}đ'.format(course.price) if course.price else '—' }}</td>
+          <td>0</td>
+          <td class="row-actions">
+            <form method="post" action="{{ url_for('admin.course_delete', course_id=course.id) }}" class="inline" onsubmit="return confirm('Xóa khoá học này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có khoá học nào.') }}
+{% endif %}
+{% endblock %}

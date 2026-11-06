@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Báo cáo khóa học — Admin{% endblock %}
+{% block content %}
+<h1>Báo cáo theo khóa học</h2>
+
+{% if courses_data %}
+  <table class="table">
+    <thead><tr><th>Khóa học</th><th>Giảng viên</th><th>Lượt đăng ký</th><th>Hoàn thành</th><th>Tỷ lệ %</th><th>Doanh thu</th></tr></thead>
+    <tbody>
+      {% for course, instructor, enrollments, completed, completion_rate, revenue in courses_data %}
+        <tr>
+          <td><a href="{{ url_for('admin.course_detail', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td>{{ instructor.display_name if instructor else '—' }}</td>
+          <td>{{ enrollments }}</td>
+          <td>{{ completed }}</td>
+          <td>{{ completion_rate|round(1) if completion_rate else 0 }}%</td>
+          <td>{{ '{:,.0f}đ'.format(revenue) if revenue else '0đ' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có dữ liệu.') }}
+{% endif %}
+{% endblock %}

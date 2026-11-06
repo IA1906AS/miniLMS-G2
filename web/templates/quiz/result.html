@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Kết quả: {{ quiz.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('main.course_detail', course_id=quiz.course_id) }}">Khoá học</a> /
+  <a href="{{ url_for('quiz.intro', quiz_id=quiz.id) }}">{{ quiz.title }}</a> / Kết quả
+</nav>
+
+<section class="card result-head">
+  <h1>{{ quiz.title }}</h1>
+  <p class="muted">Học viên: <strong>{{ student.display_name if student else '—' }}</strong></p>
+  <p class="big-score">{{ attempt.score }}<span>/10</span></p>
+  <p>
+    {% if attempt.passed %}
+      <span class="pill ok">Đạt</span>
+    {% else %}
+      <span class="pill warn">Chưa đạt</span>
+    {% endif %}
+    <span class="muted small">Điểm đạt yêu cầu: {{ quiz.pass_score }}/10</span>
+  </p>
+  <p class="muted small">Nộp lúc {{ attempt.submitted_at.strftime('%d/%m/%Y %H:%M') if attempt.submitted_at else '—' }}</p>
+  <a class="btn ghost small" href="{{ url_for('quiz.intro', quiz_id=quiz.id) }}">← Về trang bài kiểm tra</a>
+</section>
+
+<section class="mt">
+  <h2>Chi tiết bài làm</h2>
+  {% for row in detail %}
+    <article class="card question">
+      <p class="q-prompt">
+        <strong>Câu {{ loop.index }}.</strong> {{ row.question.prompt }}
+        {% if row.is_correct %}<span class="pill ok">Đúng</span>{% else %}<span class="pill warn">Sai</span>{% endif %}
+      </p>
+      <p class="muted small">Bạn chọn: <strong>{{ row.chosen or '(bỏ trống)' }}</strong></p>
+      {% if show_answers %}
+        <p class="muted small">Đáp án đúng: <strong>{{ row.correct or '—' }}</strong></p>
+      {% else %}
+        <p class="muted small">Đáp án đúng được ẩn theo cài đặt của giảng viên.</p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

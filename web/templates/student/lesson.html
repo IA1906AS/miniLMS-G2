@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('student.my_courses') }}">Khoá của tôi</a> /
+  <a href="{{ url_for('student.learn', course_id=course.id) }}">{{ course.title }}</a> /
+  {{ lesson.title }}
+</nav>
+
+<section class="learn-layout">
+  <aside class="learn-sidebar card">
+    <h2>{{ course.title }}</h2>
+    {{ m.progress(percent, completed, total) }}
+    {% for block in chapters %}
+      <div class="chapter-block">
+        <h4>{{ block.chapter.title }}</h4>
+        <ul class="lesson-list compact">
+          {% for item in block.lessons %}
+            <li class="{% if item.id in done %}is-done{% endif %}{% if item.id == lesson.id %} is-current{% endif %}">
+              <a href="{{ url_for('student.learn_lesson', course_id=course.id, lesson_id=item.id) }}">
+                {% if item.id in done %}<span class="tick">✓</span>{% else %}<span class="dot"></span>{% endif %}
+                {{ item.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </aside>
+
+  <div class="learn-main">
+    <article class="card lesson-body">
+      <p class="muted small">{{ chapter.title }} · {{ lesson.duration_min }} phút · {{ lesson.kind }}</p>
+      <h1>{{ lesson.title }}</h1>
+
+      {% if lesson.kind == 'video' and lesson.media_url %}
+        <div class="video-holder"><a href="{{ lesson.media_url }}" target="_blank" rel="noopener">▶ Mở video bài giảng</a></div>
+      {% elif lesson.kind == 'pdf' and lesson.media_url %}
+        <p><a class="btn ghost" href="{{ lesson.media_url }}" target="_blank" rel="noopener">📄 Tải tài liệu PDF</a></p>
+      {% endif %}
+
+      {% if lesson.content %}
+        <div class="prose">{{ lesson.content }}</div>
+      {% elif not lesson.media_url %}
+        <p class="empty">Bài học chưa có nội dung.</p>
+      {% endif %}
+
+      {% if lesson.attachments %}
+        <div class="attachments mt">
+          <h3>Tài liệu bài học</h3>
+          <ul>
+            {% for att in lesson.attachments %}
+              <li>
+                <a class="btn ghost small" href="{{ url_for('files.download_attachment', attachment_id=att.id) }}">
+                  📎 {{ att.title }}
+                </a>
+                <span class="muted small">{{ (att.size_bytes / 1024)|round|int }} KB</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if lesson.id in done %}
+        <p class="ok mt">✓ Bạn đã hoàn thành bài này.</p>
+      {% else %}
+        <form method="post" action="{{ url_for('student.complete_lesson', course_id=course.id, lesson_id=lesson.id) }}" class="mt">
+          <button type="submit" class="btn">Đánh dấu hoàn thành</button>
+        </form>
+      {% endif %}
+
+      <nav class="lesson-nav mt">
+        {% if prev_lesson %}
+          <a class="btn ghost small" href="{{ url_for('student.learn_lesson', course_id=course.id, lesson_id=prev_lesson.id) }}">← {{ prev_lesson.title }}</a>
+        {% else %}<span></span>{% endif %}
+        {% if next_lesson %}
+          <a class="btn ghost small" href="{{ url_for('student.learn_lesson', course_id=course.id, lesson_id=next_lesson.id) }}">{{ next_lesson.title }} →</a>
+        {% endif %}
+      </nav>
+    </article>
+  </div>
+</section>
+{% endblock %}

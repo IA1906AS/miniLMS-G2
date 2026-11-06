@@ -1,0 +1,32 @@
+{# Macro dùng chung: thẻ khoá học, thanh tiến độ, phân trang nhỏ #}
+{% macro course_card(row, show_score=None) %}
+  {% set c = row.course %}
+  <article class="card course-card">
+    <div class="card-top">
+      <span class="pill">{{ 'Miễn phí' if not c.price else '{:,.0f}đ'.format(c.price) }}</span>
+      {% if c.status != 'PUBLISHED' %}<span class="pill draft">{{ c.status }}</span>{% endif %}
+    </div>
+    <h3><a href="{{ url_for('main.course_detail', course_id=c.id) }}">{{ c.title }}</a></h3>
+    <p class="muted clamp">{{ c.description or 'Chưa có mô tả.' }}</p>
+    <ul class="meta">
+      <li>GV: {{ row.instructor.display_name if row.instructor else '—' }}</li>
+      <li>{{ row.students }} học viên</li>
+      <li>{{ row.lessons }} bài</li>
+    </ul>
+    {% if show_score is not none and show_score.get(c.id) is not none %}
+      <p class="score">Điểm của bạn: <strong>{{ show_score.get(c.id) }}</strong></p>
+    {% endif %}
+    <a class="btn small" href="{{ url_for('main.course_detail', course_id=c.id) }}">Xem chi tiết</a>
+  </article>
+{% endmacro %}
+
+{% macro progress(percent, done=None, total=None) %}
+  <div class="progress" title="{{ percent }}%">
+    <div class="bar" style="width: {{ percent }}%"></div>
+  </div>
+  <span class="progress-label">{{ percent }}%{% if done is not none and total is not none %} · {{ done }}/{{ total }} bài{% endif %}</span>
+{% endmacro %}
+
+{% macro empty(text) %}
+  <p class="empty">{{ text }}</p>
+{% endmacro %}

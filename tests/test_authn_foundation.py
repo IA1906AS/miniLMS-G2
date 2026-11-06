@@ -334,14 +334,14 @@ def test_store_operations(app):
     assert enrollment is not None
     assert enrollment["score"] == 7.5
 
-    assert store.get_enrollment("c1", "u6") is None
+    assert store.get_enrollment("c1", "u6")["score"] == 6.5
 
     enrollments_c1 = store.get_course_enrollments("c1")
-    assert len(enrollments_c1) == 2
+    assert len(enrollments_c1) == 4
 
     old = store.update_score("c1", "u4", 8.5)
     assert old == 7.5
     assert store.get_enrollment("c1", "u4")["score"] == 8.5
 
     with pytest.raises(KeyError):
-        store.update_score("c1", "u6", 10.0)
+        store.update_score("c1", "u8", 10.0)

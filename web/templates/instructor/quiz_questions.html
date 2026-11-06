@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Câu hỏi: {{ quiz.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.quizzes') }}">Bài kiểm tra</a> / {{ quiz.title }}
+</nav>
+
+<h1>Câu hỏi — {{ quiz.title }}</h1>
+<p class="muted small">Khoá: {{ course.title if course else '—' }} · {{ questions|length }} câu hỏi</p>
+
+{% if questions %}
+  <table class="table mt">
+    <thead><tr><th>#</th><th>Câu hỏi</th><th>Lựa chọn</th><th>Đáp án</th><th>Điểm</th><th></th></tr></thead>
+    <tbody>
+      {% for q in questions %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ q.prompt }}</td>
+          <td class="muted small">{{ q.options|join(' · ') }}</td>
+          <td class="muted small">
+            {% set idx = q.answer.get('index') if q.answer else none %}
+            {% if idx is not none and idx < q.options|length %}{{ q.options[idx] }}{% else %}—{% endif %}
+          </td>
+          <td>{{ q.points }}</td>
+          <td>
+            <form method="post" action="{{ url_for('instructor.question_delete', question_id=q.id) }}" class="inline"
+                  onsubmit="return confirm('Xoá câu hỏi này?');">
+              <button type="submit" class="link danger">Xoá</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Bài kiểm tra chưa có câu hỏi nào.') }}
+{% endif %}
+
+<section class="card mt">
+  <h3>Thêm câu hỏi trắc nghiệm</h3>
+  <form method="post" action="{{ url_for('instructor.quiz_questions', quiz_id=quiz.id) }}" class="form-card">
+    <label>Nội dung câu hỏi *
+      <textarea name="prompt" rows="2" required></textarea>
+    </label>
+    <div class="form-grid">
+      <label>Lựa chọn 1
+        <input type="text" name="option_0" required>
+      </label>
+      <label>Lựa chọn 2
+        <input type="text" name="option_1" required>
+      </label>
+      <label>Lựa chọn 3
+        <input type="text" name="option_2">
+      </label>
+      <label>Lựa chọn 4
+        <input type="text" name="option_3">
+      </label>
+    </div>
+    <label>Đáp án đúng (số thứ tự, bắt đầu từ 0)
+      <input type="number" name="correct" min="0" max="3" value="0">
+    </label>
+    <label>Điểm
+      <input type="number" name="points" step="0.5" min="0" value="1">
+    </label>
+    <button type="submit" class="btn">+ Thêm câu hỏi</button>
+  </form>
+</section>
+{% endblock %}

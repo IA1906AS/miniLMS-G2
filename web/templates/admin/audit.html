@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Nhật ký hoạt động — Admin{% endblock %}
+{% block content %}
+<h1>Nhật ký hoạt động</h1>
+<p class="muted">Ghi nhận đăng nhập, thay đổi điểm, thao tác quản trị. Tổng {{ total }} sự kiện.</p>
+
+<form method="get" action="{{ url_for('admin.audit') }}" class="filters mt">
+  <select name="action">
+    <option value="">Tất cả hành động</option>
+    {% for a in actions %}
+      <option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <select name="actor">
+    <option value="">Tất cả người thực hiện</option>
+    {% for u in actors %}
+      <option value="{{ u.id }}" {% if u.id == actor_filter %}selected{% endif %}>{{ u.display_name }} ({{ u.id }})</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Lọc</button>
+</form>
+
+{% if rows %}
+  <table class="table mt">
+    <thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="muted small">{{ row.ts.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+          <td>{{ row.actor_id or '—' }}</td>
+          <td><strong>{{ row.action }}</strong></td>
+          <td class="muted small">{{ row.resource }}</td>
+          <td class="muted small">{{ row.detail }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="row-actions mt">
+    {% if page > 1 %}
+      <a class="btn ghost small" href="{{ url_for('admin.audit', action=action, actor=actor_filter, page=page-1) }}">← Trang trước</a>
+    {% endif %}
+    <span class="muted small">Trang {{ page }} / {{ ((total - 1) // per_page + 1) if total else 1 }}</span>
+    {% if page * per_page < total %}
+      <a class="btn ghost small" href="{{ url_for('admin.audit', action=action, actor=actor_filter, page=page+1) }}">Trang sau →</a>
+    {% endif %}
+  </div>
+{% else %}
+  {{ m.empty('Chưa có sự kiện nào.') }}
+{% endif %}
+{% endblock %}

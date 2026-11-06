@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Huy hiệu — Admin{% endblock %}
+{% block content %}
+<h1>Quản lý huy hiệu</h2>
+
+<form method="post" action="{{ url_for('admin.badge_create') }}" class="card form-card mt" style="max-width: 600px;">
+  <h3>Tạo huy hiệu mới</h3>
+  <label>Tên huy hiệu *
+    <input type="text" name="name" required>
+  </label>
+  <label>Mô tả
+    <textarea name="description" rows="3"></textarea>
+  </label>
+  <label>Icon (emoji hoặc class)
+    <input type="text" name="icon" placeholder="🏆 hoặc trophy">
+  </label>
+  <label>Loại điều kiện
+    <select name="condition_type">
+      <option value="">— Không có —</option>
+      <option value="course_completed">Hoàn thành khóa học</option>
+      <option value="quiz_perfect">Đạt điểm tuyệt đối quiz</option>
+      <option value="streak">Streak ngày liên tiếp</option>
+      <option value="custom">Tùy chỉnh</option>
+    </select>
+  </label>
+  <label>Giá trị điều kiện
+    <input type="text" name="condition_value" placeholder="VD: 5 (cho streak 5 ngày)">
+  </label>
+  <button type="submit" class="btn">Tạo huy hiệu</button>
+</form>
+
+{% if badges %}
+  <table class="table mt">
+    <thead><tr><th>Huy hiệu</th><th>Tên</th><th>Mô tả</th><th>Điều kiện</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for badge in badges %}
+        <tr>
+          <td><span style="font-size: 1.5rem;">{{ badge.icon or '🏅' }}</span></td>
+          <td>{{ badge.name }}</td>
+          <td class="muted small">{{ badge.description or '—' }}</td>
+          <td class="muted small">
+            {% if badge.condition_type %}
+              {{ badge.condition_type }}: {{ badge.condition_value or '—' }}
+            {% else %}
+              Thủ công
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.badge_delete', badge_id=badge.id) }}" class="inline" onsubmit="return confirm('Xóa huy hiệu này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có huy hiệu nào.') }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('main.course_detail', course_id=course.id) }}">{{ course.title }}</a> / {{ quiz.title }}
+</nav>
+
+<section class="card">
+  <h1>{{ quiz.title }}</h1>
+  <p class="muted">{{ quiz.description or 'Bài kiểm tra trắc nghiệm.' }}</p>
+  <ul class="meta">
+    <li>{{ question_count }} câu hỏi</li>
+    <li>{{ total_points }} điểm thô</li>
+    <li>{% if quiz.time_limit_min %}{{ quiz.time_limit_min }} phút{% else %}Không giới hạn thời gian{% endif %}</li>
+    <li>Điểm đạt: {{ quiz.pass_score }}/10</li>
+    <li>{% if quiz.max_attempts %}Tối đa {{ quiz.max_attempts }} lượt{% else %}Không giới hạn lượt{% endif %}</li>
+  </ul>
+
+  {% if staff %}
+    <p class="muted small">Bạn là giảng viên/quản trị — có thể xem đáp án và kết quả.</p>
+    <a class="btn ghost" href="{{ url_for('instructor.quiz_questions', quiz_id=quiz.id) }}">Quản lý câu hỏi</a>
+  {% elif in_progress %}
+    <a class="btn" href="{{ url_for('quiz.take', quiz_id=quiz.id, attempt_id=in_progress.id) }}">Tiếp tục bài đang làm</a>
+  {% elif over_limit %}
+    <p class="warn-text">Bạn đã dùng hết {{ quiz.max_attempts }} lượt làm bài.</p>
+  {% else %}
+    <form method="post" action="{{ url_for('quiz.start', quiz_id=quiz.id) }}" class="mt">
+      <button type="submit" class="btn">Bắt đầu làm bài</button>
+    </form>
+  {% endif %}
+</section>
+
+{% if attempts %}
+  <section class="card mt">
+    <h3>Lịch sử làm bài</h3>
+    <table class="table">
+      <thead><tr><th>Lần</th><th>Bắt đầu</th><th>Nộp lúc</th><th>Điểm</th><th>Kết quả</th><th></th></tr></thead>
+      <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ a.started_at.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ a.submitted_at.strftime('%d/%m/%Y %H:%M') if a.submitted_at else '—' }}</td>
+            <td>{{ a.score if a.status == 'SUBMITTED' else '—' }}</td>
+            <td>
+              {% if a.status == 'SUBMITTED' %}
+                <span class="pill {{ 'ok' if a.passed else 'warn' }}">{{ 'Đạt' if a.passed else 'Chưa đạt' }}</span>
+              {% else %}<span class="pill draft">Đang làm</span>{% endif %}
+            </td>
+            <td>
+              {% if a.status == 'SUBMITTED' %}
+                <a class="btn small ghost" href="{{ url_for('quiz.result', quiz_id=quiz.id, attempt_id=a.id) }}">Xem</a>
+              {% else %}
+                <a class="btn small" href="{{ url_for('quiz.take', quiz_id=quiz.id, attempt_id=a.id) }}">Làm tiếp</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Hồ sơ — Giảng viên{% endblock %}
+{% block content %}
+<h1>Hồ sơ giảng viên</h1>
+
+<div class="card form-card">
+  <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+    {% if user.avatar_path %}
+      <img class="avatar-img" src="{{ url_for('files.serve_avatar', user_id=user.id) }}" alt="avatar" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+    {% else %}
+      <div class="avatar" style="width: 80px; height: 80px; font-size: 2rem;">{{ user.display_name[0]|upper }}</div>
+    {% endif %}
+    <div>
+      <h2>{{ user.display_name }}</h2>
+      <p class="muted small">{{ user.email }}</p>
+      <span class="badge role-{{ user.role|lower }}">{{ role_labels.get(user.role, user.role) }}</span>
+    </div>
+  </div>
+
+  <div class="meta">
+    <li><strong>Chuyên môn:</strong> {{ user.bio or '—' }}</li>
+    <li><strong>Ngày tham gia:</strong> {{ user.created_at.strftime('%d/%m/%Y') if user.created_at else '—' }}</li>
+  </div>
+
+  <div class="row-actions mt">
+    <a class="btn" href="{{ url_for('instructor.profile_edit') }}">Chỉnh sửa hồ sơ</a>
+    <a class="btn ghost" href="{{ url_for('instructor.profile_password') }}">Đổi mật khẩu</a>
+  </div>
+
+  <form method="post" action="{{ url_for('files.upload_avatar') }}" enctype="multipart/form-data" class="mt">
+    <label>Ảnh đại diện mới (PNG/JPG, tối đa 2MB)
+      <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" required>
+    </label>
+    <button type="submit" class="btn small">Tải ảnh lên</button>
+  </form>
+</div>
+
+{% if taught %}
+<section class="card mt">
+  <h2>Khóa học phụ trách ({{ taught|length }})</h2>
+  <table class="table">
+    <thead><tr><th>Khóa học</th><th>Trạng thái</th><th>Học viên</th></tr></thead>
+    <tbody>
+      {% for course, enroll_count in taught %}
+        <tr>
+          <td><a href="{{ url_for('instructor.course_edit', course_id=course.id) }}">{{ course.title }}</a></td>
+          <td><span class="pill {{ 'ok' if course.status == 'PUBLISHED' else 'draft' }}">{{ course.status }}</span></td>
+          <td>{{ enroll_count }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% else %}
+  {{ m.empty('Bạn chưa phụ trách khóa học nào.') }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt hệ thống — miniLMS{% endblock %}
+{% block content %}
+<h1>Cài đặt hệ thống</h1>
+
+<div class="subnav mb" style="margin-bottom: 1rem;">
+  <a class="btn" href="{{ url_for('admin.settings') }}">Cài đặt chung</a>
+  <a class="btn ghost" href="{{ url_for('admin.settings_roles') }}">Cấu hình phân quyền</a>
+  <a class="btn ghost" href="{{ url_for('admin.settings_payments') }}">Cài đặt thanh toán</a>
+</div>
+
+<form method="post" action="{{ url_for('admin.settings_update') }}" class="card form-card">
+  {% if settings %}
+    {% for setting in settings %}
+      <label>{{ setting.key }}
+        <input type="text" name="setting_{{ setting.key }}" value="{{ setting.value }}">
+      </label>
+    {% endfor %}
+  {% else %}
+    <p class="muted">Chưa có cài đặt nào.</p>
+  {% endif %}
+  <button type="submit" class="btn mt">Lưu cài đặt</button>
+</form>
+{% endblock %}

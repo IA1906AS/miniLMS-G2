@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Tạo bài kiểm tra — miniLMS{% endblock %}
+{% block content %}
+<nav class="crumbs">
+  <a href="{{ url_for('instructor.quizzes') }}">Bài kiểm tra</a> / Tạo mới
+</nav>
+
+<h1>Tạo bài kiểm tra cho {{ course.title }}</h1>
+
+<form method="post" action="{{ url_for('instructor.quiz_new', course_id=course.id) }}" class="card form-card">
+  <label>Tên bài kiểm tra *
+    <input type="text" name="title" required>
+  </label>
+  <label>Mô tả
+    <textarea name="description" rows="3"></textarea>
+  </label>
+  <label>Thời gian (phút)
+    <input type="number" name="time_limit_min" min="0" value="15">
+  </label>
+  <label>Điểm đạt (thang 10)
+    <input type="number" name="pass_score" step="0.5" min="0" max="10" value="5">
+  </label>
+  <label>Số lượt tối đa (0 = không giới hạn)
+    <input type="number" name="max_attempts" min="0" value="3">
+  </label>
+  <label class="check">
+    <input type="checkbox" name="show_answers" value="1"> Cho học viên xem đáp án sau khi nộp
+  </label>
+  <button type="submit" class="btn">Tạo bài kiểm tra</button>
+</form>
+{% endblock %}

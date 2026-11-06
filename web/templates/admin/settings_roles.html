@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Phân quyền vai trò — Admin{% endblock %}
+{% block content %}
+<h1>Cấu hình phân quyền vai trò</h2>
+
+<form method="post" action="{{ url_for('admin.settings_roles_save') }}" class="card form-card mt">
+  {% for role in ['ADMIN', 'INSTRUCTOR', 'STUDENT', 'GUEST'] %}
+    <section class="mt" style="padding: 1rem; border: 1px solid var(--line); border-radius: 8px;">
+      <h3>{{ role_labels.get(role, role) }}</h3>
+      <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+        {% for perm in all_permissions %}
+          <label class="check">
+            <input type="checkbox" name="perm_{{ role }}" value="{{ perm }}" {% if current_perms.get(role, '').split(',')|select('equalto', perm)|list|length > 0 %}checked{% endif %}>
+            {{ perm }}
+          </label>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+  <button type="submit" class="btn mt">Lưu phân quyền</button>
+</form>
+{% endblock %}

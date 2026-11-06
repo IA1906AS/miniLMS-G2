@@ -71,11 +71,12 @@ class Store:
         # 3. Enrollments
         self.enrollments.clear()
         for e in data.get("enrollments", []):
+            score_val = e.get("score")
             self.enrollments.append(
                 {
                     "courseId": e["courseId"],
                     "studentId": e["studentId"],
-                    "score": float(e["score"]),
+                    "score": float(score_val) if score_val is not None else 0.0,
                 }
             )
 

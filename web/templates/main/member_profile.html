@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ member.display_name }} — miniLMS{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;align-items:center;gap:1.5rem;">
+    {% if member.avatar_path %}
+      <img src="{{ url_for('files.serve_avatar', user_id=member.id) }}" alt="avatar" style="width:96px;height:96px;border-radius:50%;object-fit:cover;">
+    {% else %}
+      <div class="avatar" style="width:96px;height:96px;font-size:2.4rem;">{{ member.display_name[0]|upper }}</div>
+    {% endif %}
+    <div>
+      <h1>{{ member.display_name }}</h1>
+      <span class="badge role-{{ member.role|lower }}">{{ role_labels.get(member.role, member.role) }}</span>
+    </div>
+  </div>
+
+  <div class="meta mt">
+    <li><strong>Giới thiệu:</strong> {{ member.bio or '—' }}</li>
+    <li><strong>Tham gia:</strong> {{ member.created_at.strftime('%d/%m/%Y') if member.created_at else '—' }}</li>
+  </div>
+
+  {% if member.email == current_user.email %}
+    <p class="muted small mt">Đây là hồ sơ của bạn. <a href="{{ url_for('student.profile') if current_user.role == 'STUDENT' else url_for('instructor.profile') }}">Chỉnh sửa</a></p>
+  {% endif %}
+</div>
+
+{% if taught %}
+<section class="card mt">
+  <h2>Khoá học phụ trách</h2>
+  <ul class="plain-list">
+    {% for c in taught %}
+      <li><a href="{{ url_for('main.course_detail', course_id=c.id) }}">{{ c.title }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if studying %}
+<section class="card mt">
+  <h2>Khoá học đang học</h2>
+  <ul class="plain-list">
+    {% for c in studying %}
+      <li><a href="{{ url_for('main.course_detail', course_id=c.id) }}">{{ c.title }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if shared %}
+<section class="card mt">
+  <h2>Khoá học chung</h2>
+  <ul class="plain-list">
+    {% for c in shared %}
+      <li><a href="{{ url_for('main.course_detail', course_id=c.id) }}">{{ c.title }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

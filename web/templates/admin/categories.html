@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Quản lý danh mục — Admin{% endblock %}
+{% block content %}
+<h1>Quản lý danh mục</h1>
+
+<form method="post" action="{{ url_for('admin.category_create') }}" class="card form-card mt" style="max-width: 400px;">
+  <h3>Tạo danh mục mới</h3>
+  <label>Tên danh mục *
+    <input type="text" name="name" required>
+  </label>
+  <button type="submit" class="btn">Tạo</button>
+</form>
+
+{% if categories %}
+  <table class="table mt">
+    <thead><tr><th>Tên</th><th>Số khóa học</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for cat in categories %}
+        <tr>
+          <td>{{ cat.name }}</td>
+          <td>{{ cat.courses|length }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.category_delete', cat_id=cat.id) }}" class="inline" onsubmit="return confirm('Xóa danh mục này?');">
+              <button type="submit" class="link danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  {{ m.empty('Chưa có danh mục nào.') }}
+{% endif %}
+{% endblock %}
