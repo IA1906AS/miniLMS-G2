@@ -626,6 +626,7 @@ def main() -> int:
         italic=True,
         size=10,
     )
+    heading(doc, "6.1. Bản lỗi (trước khi sửa)", 2)
     shots = [
         (
             "docs/poc/v01_lan1.png",
@@ -652,6 +653,37 @@ def main() -> int:
         pic_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         pic_p.paragraph_format.space_before = Pt(8)
         pic_p.add_run().add_picture(str(path), width=Cm(16.5))
+        cap = doc.add_paragraph()
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cap.paragraph_format.space_after = Pt(10)
+        run = cap.add_run(caption)
+        set_run_font(run, size=9, italic=True, color=GRAY)
+
+    heading(doc, "6.2. Bản đã sửa (sinh viên tự chụp)", 2)
+    body(
+        doc,
+        "Các ảnh dưới đây do sinh viên tự chụp trên nhánh sua-diem-fixed, cùng bộ request nhưng "
+        "có thêm trường version. Ảnh được lấy từ thư mục Screenshots của máy.",
+        italic=True,
+        size=10,
+    )
+    fixed_shots = [
+        ("docs/poc_user/v01_302.png", "Ảnh 5 — V01 lần 1: score=9&version=1, server trả 302."),
+        ("docs/poc_user/v01_409.png", "Ảnh 6 — V01 lần 2: vẫn version=1 cũ, server trả 409 Conflict."),
+        ("docs/poc_user/v02_302.png", "Ảnh 7 — V02: score=8&version=1, server trả 302 (không còn 500)."),
+        (
+            "docs/poc_user/v03_banner.png",
+            "Ảnh 8 — V03: score=99 bị chặn, trang hiện “Điểm phải nằm trong khoảng 0–10.0.”",
+        ),
+    ]
+    for rel, caption in fixed_shots:
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        pic_p = doc.add_paragraph()
+        pic_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pic_p.paragraph_format.space_before = Pt(8)
+        pic_p.add_run().add_picture(str(Path(path).resolve()), width=Cm(16.5))
         cap = doc.add_paragraph()
         cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
         cap.paragraph_format.space_after = Pt(10)
