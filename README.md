@@ -66,6 +66,7 @@ kèm version đã đọc; lệch version trả **409 Conflict** và không ghi �
 - Bản trước khi sửa: `docs/patterns/sua_diem_truoc_khi_sua.py`
 - Bằng chứng before/after: `docs/patterns/evidence.txt`
 - Báo cáo kiểm thử: `docs/Bao_cao_kiem_thu_sua_diem.docx` / `.pdf`
+- Hướng dẫn PoC bằng Burp Suite: `docs/Huong_dan_PoC_Burp_sua_diem.docx` / `.pdf`
 
 ## Kiểm tra chất lượng
 
