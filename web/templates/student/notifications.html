@@ -11,7 +11,7 @@
         <p class="muted small">{{ note.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
         <p>{{ note.body }}</p>
         {% if note.link %}
-          <a class="btn small mt" href="{{ note.link }}">Xem chi tiết</a>
+          <a class="btn small mt" href="{{ note.link|safe_url }}">Xem chi tiết</a>
         {% endif %}
         {% if not note.read_at %}
           <form method="post" action="{{ url_for('student.notification_read', notification_id=note.id) }}" class="inline mt">

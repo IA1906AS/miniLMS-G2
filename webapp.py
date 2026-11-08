@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 from web import create_web_app
 
 load_dotenv()
-jwt_secret = os.environ.get("JWT_SECRET") or "dev-secret-key-that-is-at-least-32-chars-long-12345"
-app = create_web_app({"JWT_SECRET": jwt_secret})
+# JWT_SECRET bắt buộc lấy từ môi trường/.env — không có giá trị mặc định cứng.
+app = create_web_app()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8888, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="127.0.0.1", port=8888, debug=debug)

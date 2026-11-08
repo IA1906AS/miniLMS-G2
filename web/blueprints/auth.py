@@ -28,6 +28,7 @@ from app.errors import AppError
 from web.audit import record as audit_record
 from web.auth import (
     ROLE_HOME,
+    AuthError,
     attach_session,
     authenticate,
     clear_session,
@@ -36,7 +37,6 @@ from web.auth import (
 from web.database import get_db
 from web.mailer import send_password_reset
 from web.models import (
-    ROLE_INSTRUCTOR,
     ROLE_STUDENT,
     USER_STATUS_ACTIVE,
     AuthSession,
@@ -82,8 +82,8 @@ def login() -> tuple[str, int] | Response:
             except AppError as exc:
                 error = str(exc)
                 logged = None
-            except Exception:
-                error = "Tài khoản tạm thời bị khoá do đăng nhập sai quá nhiều lần. Thử lại sau 15 phút."
+            except AuthError as exc:
+                error = str(exc)
                 logged = None
 
             if logged is None:
@@ -121,8 +121,9 @@ def register() -> tuple[str, int] | Response:
         full_name = (request.form.get("full_name") or "").strip()
         password = request.form.get("password") or ""
         confirm = request.form.get("confirm_password") or ""
-        want_instructor = request.form.get("role") == "INSTRUCTOR"
-        role = ROLE_INSTRUCTOR if want_instructor else ROLE_STUDENT
+        # Spec: vai trò mặc định khi tự đăng ký là SV. Không tin trường "role"
+        # từ client (chống leo thang đặc quyền); Admin mới được cấp quyền GV.
+        role = ROLE_STUDENT
 
         if not email or not password or not confirm:
             error = "Vui lòng nhập đầy đủ thông tin."
@@ -197,7 +198,9 @@ def forgot_password() -> tuple[str, int] | str:
                         )
                     )
                     user_email = user.email
-                    base = current_app.config.get("PUBLIC_BASE_URL") or request.host_url
+                    # Không dùng request.host_url (Host header do client kiểm soát
+                    # → chèn domain giả vào link reset). Chỉ dùng URL cấu hình.
+                    base = str(current_app.config["PUBLIC_BASE_URL"])
                     reset_url = base.rstrip("/") + url_for("auth.reset_password", token=raw_token)
             if user_email is not None:
                 send_password_reset(user_email, reset_url, ttl)

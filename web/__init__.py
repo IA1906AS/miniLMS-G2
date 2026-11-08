@@ -30,7 +30,47 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "RESET_TOKEN_TTL_MINUTES": 30,
     # 25MB: cho phép tệp bài nộp + request overhead.
     "MAX_CONTENT_LENGTH": 25 * 1024 * 1024,
+    # URL gốc dùng để dựng link trong email (không lấy từ Host header).
+    "PUBLIC_BASE_URL": "http://127.0.0.1:8888",
+    "SESSION_COOKIE_SECURE": False,
 }
+
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _install_security_hooks(app: Flask) -> None:
+    """Chống CSRF (kiểm tra Origin/Referer) + gắn security header."""
+    from urllib.parse import urlsplit
+
+    from flask import abort, request
+
+    @app.before_request
+    def _csrf_origin_check() -> None:
+        if request.method not in _UNSAFE_METHODS:
+            return
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        if not source:
+            # Trình duyệt hiện đại luôn gửi Origin cho POST cross-site;
+            # thiếu cả hai thường là client không phải trình duyệt (test, curl).
+            return
+        allowed = {request.host, urlsplit(str(app.config["PUBLIC_BASE_URL"])).netloc}
+        if source == "null" or urlsplit(source).netloc not in allowed:
+            abort(403)
+
+    @app.after_request
+    def _security_headers(response: Any) -> Any:
+        headers = response.headers
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-Frame-Options", "DENY")
+        headers.setdefault("Referrer-Policy", "same-origin")
+        headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'; "
+            "base-uri 'self'; object-src 'none'",
+        )
+        return response
+
 
 WEB_DIR = Path(__file__).resolve().parent
 
@@ -63,9 +103,12 @@ def create_web_app(config: dict[str, Any] | None = None) -> Flask:
         "SMTP_PORT",
         "SMTP_USER",
         "SMTP_PASSWORD",
+        "PUBLIC_BASE_URL",
     ):
         if os.environ.get(key):
             cfg[key] = os.environ[key]
+    if os.environ.get("SESSION_COOKIE_SECURE"):
+        cfg["SESSION_COOKIE_SECURE"] = os.environ["SESSION_COOKIE_SECURE"].lower() in {"1", "true", "yes"}
     if config:
         cfg.update(config)
 
@@ -100,6 +143,19 @@ def create_web_app(config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(quiz_bp)
     app.register_blueprint(instructor_bp)
     app.register_blueprint(admin_bp)
+    _install_security_hooks(app)
+
+    @app.template_filter("safe_url")
+    def _safe_url(value: Any) -> str:
+        """Chỉ cho phép http(s) hoặc đường dẫn nội bộ — chặn ``javascript:``/``data:``."""
+        from urllib.parse import urlsplit
+
+        url = str(value or "").strip()
+        if url.startswith("/") and not url.startswith("//"):
+            return url
+        if urlsplit(url).scheme.lower() in {"http", "https"}:
+            return url
+        return "#"
 
     @app.context_processor
     def inject_globals() -> dict[str, Any]:

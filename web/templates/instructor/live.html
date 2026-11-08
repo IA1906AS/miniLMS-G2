@@ -17,7 +17,7 @@
               <tr>
                 <td>{{ s.title }}</td>
                 <td class="muted small">{{ s.start_at.strftime('%d/%m/%Y %H:%M') if s.start_at else '—' }}</td>
-                <td><a href="{{ s.meeting_url }}" target="_blank" rel="noopener">Tham gia</a></td>
+                <td><a href="{{ s.meeting_url|safe_url }}" target="_blank" rel="noopener">Tham gia</a></td>
                 <td>
                   <form method="post" action="{{ url_for('instructor.live_delete', session_id=s.id) }}" class="inline"
                         onsubmit="return confirm('Xoá buổi học này?');">

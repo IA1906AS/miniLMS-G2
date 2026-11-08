@@ -178,6 +178,25 @@ def courses() -> str:
     return render_template("instructor/courses.html", rows=rows)
 
 
+def _parse_number(raw: str | None, default: float, upper: float | None = None) -> float | None:
+    """Parse số hữu hạn, >= 0 (và <= upper nếu có). Không hợp lệ → None."""
+    text = (raw or "").strip()
+    if not text:
+        return default
+    try:
+        # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+        value = float(text)  # đã kiểm tra isfinite bên dưới
+    except ValueError:
+        return None
+    if not math.isfinite(value) or value < 0 or (upper is not None and value > upper):
+        return None
+    return value
+
+
+def _parse_price(raw: str | None) -> float | None:
+    return _parse_number(raw, 0.0)
+
+
 @bp.route("/courses/new", methods=["GET", "POST"])
 @instructor_required
 def course_new() -> str | Response:
@@ -189,8 +208,11 @@ def course_new() -> str | Response:
 
         if request.method == "POST":
             title = (request.form.get("title") or "").strip()
+            price = _parse_price(request.form.get("price"))
             if not title:
                 flash("Tên khoá học là bắt buộc.", "error")
+            elif price is None:
+                flash("Học phí phải là số không âm.", "error")
             else:
                 ids = sess.scalars(select(Course.id)).all()
                 nums = [int(i[1:]) for i in ids if i[0] == "c" and i[1:].isdigit()]
@@ -201,7 +223,7 @@ def course_new() -> str | Response:
                     slug=None,
                     description=(request.form.get("description") or "").strip() or None,
                     category_id=request.form.get("category_id", type=int),
-                    price=float(request.form.get("price") or 0),
+                    price=price,
                     status=(
                         request.form.get("status")
                         if request.form.get("status") in {COURSE_DRAFT, COURSE_PUBLISHED, COURSE_HIDDEN}
@@ -731,8 +753,22 @@ def certificate_issue(course_id: str) -> Response:
         course = my_course(sess, actor, course_id)
         student_id = (request.form.get("student_id") or "").strip()
         student = sess.get(User, student_id)
-        if student is None:
-            flash("Không tìm thấy học viên.", "error")
+        final_score = _parse_number(request.form.get("final_score"), 8.0, upper=10.0)
+        enrolled = (
+            sess.scalars(
+                select(Enrollment.id).where(
+                    Enrollment.course_id == course_id,
+                    Enrollment.student_id == student_id,
+                    Enrollment.status == "ACTIVE",
+                )
+            ).first()
+            if student is not None
+            else None
+        )
+        if student is None or enrolled is None:
+            flash("Không tìm thấy học viên đã ghi danh khoá này.", "error")
+        elif final_score is None:
+            flash("Điểm tổng kết phải nằm trong khoảng 0–10.", "error")
         else:
             existing = sess.scalars(
                 select(Certificate).where(
@@ -748,7 +784,7 @@ def certificate_issue(course_id: str) -> Response:
                         code=f"CERT-{course.id.upper()}-{student_id.upper()}-{int(utcnow().timestamp())}",
                         user_id=student_id,
                         course_id=course_id,
-                        final_score=float(request.form.get("final_score") or 8),
+                        final_score=final_score,
                     )
                 )
                 flash("Đã cấp chứng chỉ.", "success")

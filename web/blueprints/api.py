@@ -141,6 +141,7 @@ def get_grades(course_id: str) -> Any:
                 select(Enrollment.id).where(
                     Enrollment.course_id == course_id,
                     Enrollment.student_id == actor["id"],
+                    Enrollment.status == "ACTIVE",
                 )
             ).first()
             if not enrolled:
@@ -196,6 +197,7 @@ def get_assignment(assignment_id: int) -> Any:
                 select(Enrollment.id).where(
                     Enrollment.course_id == course.id,
                     Enrollment.student_id == actor["id"],
+                    Enrollment.status == "ACTIVE",
                 )
             ).first()
             if not enrolled:
