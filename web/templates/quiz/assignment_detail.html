@@ -37,15 +37,50 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('quiz.assignment_submit', assignment_id=assignment.id) }}"
-          enctype="multipart/form-data" class="form-card mt">
+          enctype="multipart/form-data" class="form-card mt" id="submitForm">
+      {# Idempotency Key: UUID v4 sinh phía JS, gắn với phiên mở form này.
+         Nếu JS chưa chạy kịp, trường vẫn được submit rỗng và server fallback
+         về hành vi không có key (backward-compat). #}
+      <input type="hidden" name="idempotency_key" id="idempotencyKey" value="">
       <label>Nội dung bài làm
         <textarea name="text" rows="6">{{ submission.text if submission else '' }}</textarea>
       </label>
       <label>Tệp đính kèm (PDF/DOC/ZIP, tối đa 20MB)
         <input type="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.txt,.py,.js,.sql">
       </label>
-      <button type="submit" class="btn">{{ 'Cập nhật bài nộp' if submission else 'Nộp bài' }}</button>
+      <button type="submit" class="btn" id="submitBtn">{{ 'Cập nhật bài nộp' if submission else 'Nộp bài' }}</button>
+      <span id="submitSpinner" style="display:none; margin-left:8px;" class="muted small">⏳ Đang nộp bài…</span>
     </form>
+    <script>
+      // Sinh UUID v4 cho phiên mở form này (Idempotency Key)
+      function uuidv4() {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) {
+          return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
+        });
+      }
+      var idemInput = document.getElementById('idempotencyKey');
+      // Nếu trang được load lại (mạng lag / F5), giữ nguyên key cũ trong sessionStorage
+      // để request retry dùng cùng key → server nhận ra là replay và không xử lý lại.
+      var storageKey = 'idem_assignment_{{ assignment.id }}';
+      var existingKey = sessionStorage.getItem(storageKey);
+      if (!existingKey) {
+        existingKey = uuidv4();
+        sessionStorage.setItem(storageKey, existingKey);
+      }
+      idemInput.value = existingKey;
+
+      // Chống double-click: disable nút sau khi bấm lần đầu
+      document.getElementById('submitForm').addEventListener('submit', function() {
+        var btn = document.getElementById('submitBtn');
+        var spinner = document.getElementById('submitSpinner');
+        btn.disabled = true;
+        btn.textContent = 'Đang xử lý…';
+        spinner.style.display = 'inline';
+        // Sau khi server xử lý xong và redirect về, trang load lại sẽ sinh key mới
+        // (key cũ bị xoá khỏi sessionStorage) → đảm bảo lần nộp tiếp theo dùng key mới.
+        sessionStorage.removeItem(storageKey);
+      });
+    </script>
   </section>
 {% endif %}
 

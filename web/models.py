@@ -527,3 +527,55 @@ class Setting(Base):
 
     key: Mapped[str] = mapped_column(String(60), primary_key=True)
     value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# 8. Idempotency Key — Defensive Pattern #2 (spec: nộp bài tập)
+# ---------------------------------------------------------------------------
+
+#: Trạng thái khoá idempotency đang được xử lý — chống race condition song song.
+IDEM_PENDING = "PENDING"
+#: Trạng thái khoá idempotency đã hoàn thành — phục vụ replay an toàn.
+IDEM_COMPLETED = "COMPLETED"
+#: Trạng thái khoá idempotency thất bại — cho phép thử lại.
+IDEM_FAILED = "FAILED"
+
+
+class IdempotencyKey(Base):
+    """Lưu trữ khoá idempotency cho nghiệp vụ nộp bài tập.
+
+    Luồng:
+      1. Request đến → chèn bản ghi trạng thái PENDING (atomic INSERT).
+      2. Nếu chèn bị khoá (UNIQUE conflict) → đọc bản ghi hiện có.
+         - Nếu PENDING  → 409 Conflict (đang xử lý song song).
+         - Nếu COMPLETED và hash khớp → replay phản hồi cũ (I01 fix).
+         - Nếu COMPLETED nhưng hash khác → 422 Payload Mismatch.
+         - Nếu FAILED → cho phép retry.
+      3. Sau khi xử lý xong → cập nhật COMPLETED + lưu redirect target.
+    """
+
+    __tablename__ = "idempotency_keys"
+    __table_args__ = (
+        UniqueConstraint("idem_key", "student_id", name="uq_idem_key_student"),
+        Index("ix_idem_expires", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    #: Giá trị key do client cung cấp (UUID v4 hoặc chuỗi ngẫu nhiên).
+    idem_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    #: Sinh viên sở hữu key này — ngăn key của người khác bị dùng chung.
+    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    #: Định danh nghiệp vụ, ví dụ "assignment:5:submit".
+    resource: Mapped[str] = mapped_column(String(200), nullable=False)
+    #: SHA-256 của payload (text + nội dung file) để phát hiện payload mismatch (I03).
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: Trạng thái xử lý: PENDING | COMPLETED | FAILED.
+    status: Mapped[str] = mapped_column(String(16), default=IDEM_PENDING, nullable=False)
+    #: HTTP redirect location khi replay (ví dụ: "/assignments/5").
+    response_location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    #: Thời điểm tạo key.
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=utcnow, nullable=False)
+    #: Thời điểm hoàn thành (COMPLETED/FAILED).
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    #: Hạn sống của key — sau thời điểm này key có thể bị xoá (mặc định 24 giờ).
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
