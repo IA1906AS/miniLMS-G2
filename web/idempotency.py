@@ -1,10 +1,5 @@
 """Defensive Pattern #2: Idempotency Key cho tính năng Nộp bài tập.
 
-Giải quyết:
-  I01 - Xử lý lặp ngầm (Silent Double Processing): gửi lặp tuần tự khiến máy
-        chủ nhân bản file và ghi đè submitted_at.
-  I02 - Race condition khi gửi song song (single-packet attack): 2 request đến
-        cùng lúc, cả hai đều được xử lý và trả 302.
 
 Luồng sử dụng (xem quiz.py → assignment_submit):
   1. Client gửi form kèm trường ẩn ``idempotency_key`` (UUID v4, sinh phía JS).
@@ -26,6 +21,7 @@ from datetime import timedelta
 from typing import Literal
 
 from sqlalchemy import exc as sa_exc
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from werkzeug.datastructures import FileStorage
 
@@ -116,17 +112,16 @@ def begin_idempotent_request(
     )
 
     try:
-        sess.add(new_record)
-        sess.flush()  # Gây UNIQUE constraint violation ngay nếu key đã tồn tại
+        with sess.begin_nested():
+            sess.add(new_record)
+            sess.flush()  # Gây UNIQUE constraint violation ngay nếu key đã tồn tại
         return ("NEW", new_record)
 
     except sa_exc.IntegrityError:
-        # Rollback savepoint ngầm để session còn dùng được
-        sess.rollback()
-
+        # Savepoint được rollback tự động bởi begin_nested context manager
         # Đọc bản ghi hiện có
         existing = sess.scalars(
-            __import__("sqlalchemy", fromlist=["select"]).select(IdempotencyKey).where(
+            select(IdempotencyKey).where(
                 IdempotencyKey.idem_key == idem_key,
                 IdempotencyKey.student_id == student_id,
             )
@@ -140,24 +135,26 @@ def begin_idempotent_request(
             return ("PENDING", existing)
 
         if existing.status == IDEM_COMPLETED:
-            if existing.request_hash == request_hash:
+            # Chỉ replay khi khớp cả resource nghiệp vụ lẫn hash payload
+            if existing.resource == resource and existing.request_hash == request_hash:
                 return ("REPLAY", existing)
             return ("MISMATCH", existing)
 
         # IDEM_FAILED — cho phép thử lại bằng cách xoá bản ghi cũ
-        sess.delete(existing)
-        sess.flush()
-        new_record2 = IdempotencyKey(
-            idem_key=idem_key,
-            student_id=student_id,
-            resource=resource,
-            request_hash=request_hash,
-            status=IDEM_PENDING,
-            created_at=now,
-            expires_at=now + _KEY_TTL,
-        )
-        sess.add(new_record2)
-        sess.flush()
+        with sess.begin_nested():
+            sess.delete(existing)
+            sess.flush()
+            new_record2 = IdempotencyKey(
+                idem_key=idem_key,
+                student_id=student_id,
+                resource=resource,
+                request_hash=request_hash,
+                status=IDEM_PENDING,
+                created_at=now,
+                expires_at=now + _KEY_TTL,
+            )
+            sess.add(new_record2)
+            sess.flush()
         return ("NEW", new_record2)
 
 
@@ -194,4 +191,3 @@ def fail_idempotent_request(sess: Session, record: IdempotencyKey) -> None:
     record.status = IDEM_FAILED
     record.completed_at = utcnow()
     sess.flush()
-

@@ -444,10 +444,7 @@ def assignment_submit(assignment_id: int) -> Response:
     redirect_target = url_for("quiz.assignment_detail", assignment_id=assignment_id)
 
     # --- Lấy Idempotency-Key từ form hoặc HTTP header ---
-    idem_key = (
-        (request.form.get("idempotency_key") or "").strip()
-        or request.headers.get("Idempotency-Key", "").strip()
-    )
+    idem_key = (request.form.get("idempotency_key") or "").strip() or request.headers.get("Idempotency-Key", "").strip()
 
     with get_db().session() as sess:
         assignment = sess.get(Assignment, assignment_id)
@@ -473,6 +470,10 @@ def assignment_submit(assignment_id: int) -> Response:
         # Chỉ áp dụng khi client gửi kèm key (form web + Burp Repeater + API).
         # Nếu không có key: fallback về hành vi cũ (backward-compat).
         # -------------------------------------------------------------------
+        if idem_key and len(idem_key) > 128:
+            flash("Idempotency Key không hợp lệ (vượt quá 128 ký tự).", "error")
+            return redirect(redirect_target)
+
         if idem_key:
             # Tính hash payload TRƯỚC khi lưu file (stream chưa bị đọc).
             req_hash = compute_request_hash(text, file if has_file else None)
@@ -497,9 +498,7 @@ def assignment_submit(assignment_id: int) -> Response:
             if status == "REPLAY":
                 # [I01 FIX] Request lặp lại với cùng key & payload →
                 # replay redirect cũ, KHÔNG lưu file mới, KHÔNG đổi submitted_at.
-                replay_loc = (
-                    idem_record.response_location if idem_record else redirect_target
-                )
+                replay_loc = idem_record.response_location if idem_record else redirect_target
                 flash("Bài nộp đã được ghi nhận trước đó (yêu cầu lặp lại).", "info")
                 resp = redirect(replay_loc or redirect_target)
                 resp.headers["X-Idempotent-Replay"] = "true"
@@ -508,8 +507,7 @@ def assignment_submit(assignment_id: int) -> Response:
             if status == "MISMATCH":
                 # Cùng key nhưng payload khác → từ chối
                 flash(
-                    "Idempotency Key đã được dùng cho một yêu cầu khác. "
-                    "Vui lòng tải lại trang và nộp lại.",
+                    "Idempotency Key đã được dùng cho một yêu cầu khác. Vui lòng tải lại trang và nộp lại.",
                     "error",
                 )
                 return redirect(redirect_target), 409  # type: ignore[return-value]

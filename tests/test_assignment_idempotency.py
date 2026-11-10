@@ -8,15 +8,15 @@ Bao phủ 2 lỗi đã sửa:
         đến cùng lúc → sau khi sửa: request đến sau nhận 409 Conflict.
 
 Các test case:
-  test_submit_first_time_success                   – Nộp lần đầu trả 302, tạo Submission.
-  test_submit_duplicate_replays_no_new_submission  – Gửi lặp cùng key → replay 302,
+  test_submit_first_time_success                   - Nộp lần đầu trả 302, tạo Submission.
+  test_submit_duplicate_replays_no_new_submission  - Gửi lặp cùng key -> replay 302,
                                                      KHÔNG tạo thêm Submission thứ 2.
-  test_submit_duplicate_does_not_change_submitted_at – Gửi lặp → submitted_at không đổi.
-  test_submit_parallel_pending_returns_409         – Giả lập song song: key đang PENDING
-                                                     → 409 Conflict (chống I02).
-  test_submit_mismatch_key_returns_409             – Cùng key, payload khác → 409.
-  test_submit_no_key_still_works                   – Không có key → backward-compat OK.
-  test_form_includes_idempotency_key_field         – Form HTML có trường idempotency_key.
+  test_submit_duplicate_does_not_change_submitted_at - Gửi lặp -> submitted_at không đổi.
+  test_submit_parallel_pending_returns_409         - Giả lập song song: key đang PENDING
+                                                     -> 409 Conflict (chống I02).
+  test_submit_mismatch_key_returns_409             - Cùng key, payload khác -> 409.
+  test_submit_no_key_still_works                   - Không có key -> backward-compat OK.
+  test_form_includes_idempotency_key_field         - Form HTML có trường idempotency_key.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 
 from web import create_web_app
-from web.models import IdempotencyKey, Submission, utcnow, IDEM_PENDING
+from web.models import IDEM_PENDING, IdempotencyKey, Submission, utcnow
 
 TEST_SECRET = "test-secret-key-that-is-at-least-32-chars-long-12345"
 SEED_PATH = str(Path(__file__).resolve().parent.parent / "seed.json")
@@ -90,17 +90,14 @@ def count_submissions(webapp: Any, assignment_id: int = 1) -> int:
 
 def get_submitted_at(webapp: Any, student_id: str = "u6", assignment_id: int = 1):
     with webapp.extensions["lms_db"].session() as sess:
-        sub = (
-            sess.query(Submission)
-            .filter_by(assignment_id=assignment_id, student_id=student_id)
-            .first()
-        )
+        sub = sess.query(Submission).filter_by(assignment_id=assignment_id, student_id=student_id).first()
         return sub.submitted_at if sub else None
 
 
 def plant_pending_key(webapp: Any, idem_key: str, student_id: str = "u6") -> None:
     """Chèn trực tiếp bản ghi PENDING vào DB để giả lập request song song."""
     from datetime import timedelta
+
     with webapp.extensions["lms_db"].session() as sess:
         sess.add(
             IdempotencyKey(
@@ -137,9 +134,7 @@ class TestSubmitFirstTime:
         login(client)
         resp = submit_assignment(client, idem_key=None)
 
-        assert resp.status_code == 302, (
-            f"Backward-compat thất bại: mong 302 nhưng nhận {resp.status_code}"
-        )
+        assert resp.status_code == 302, f"Backward-compat thất bại: mong 302 nhưng nhận {resp.status_code}"
         assert count_submissions(webapp) >= 1
 
 
@@ -164,9 +159,7 @@ class TestIdempotentReplay:
 
         # Lần nộp thứ hai — cùng key, cùng payload
         r2 = submit_assignment(client, idem_key=key)
-        assert r2.status_code == 302, (
-            f"[I01] Lần 2 (replay) mong 302 nhưng nhận {r2.status_code}"
-        )
+        assert r2.status_code == 302, f"[I01] Lần 2 (replay) mong 302 nhưng nhận {r2.status_code}"
 
         count_after_second = count_submissions(webapp)
         assert count_after_second == count_after_first, (
@@ -212,9 +205,7 @@ class TestIdempotentReplay:
         submit_assignment(client, idem_key=key)
         r2 = submit_assignment(client, idem_key=key)
 
-        assert r2.headers.get("X-Idempotent-Replay") == "true", (
-            "Phản hồi replay thiếu header X-Idempotent-Replay"
-        )
+        assert r2.headers.get("X-Idempotent-Replay") == "true", "Phản hồi replay thiếu header X-Idempotent-Replay"
 
 
 class TestParallelConflict:
@@ -246,14 +237,8 @@ class TestParallelConflict:
                 # Flask lưu flash dạng list of (category, message)
                 flashes = sess_data.get("_flashes", [])
                 messages = [msg for _, msg in flashes]
-                has_error = any(
-                    "đang xử lý" in msg or "conflict" in msg.lower() or "409" in msg
-                    for msg in messages
-                )
-                assert has_error, (
-                    f"Mong flash message báo xung đột song song nhưng không tìm thấy. "
-                    f"Flashes: {flashes}"
-                )
+                has_error = any("đang xử lý" in msg or "conflict" in msg.lower() or "409" in msg for msg in messages)
+                assert has_error, f"Mong flash message báo xung đột song song nhưng không tìm thấy. Flashes: {flashes}"
 
 
 class TestPayloadMismatch:
@@ -276,20 +261,14 @@ class TestPayloadMismatch:
         r2 = submit_assignment(client, idem_key=key, text="Payload B — NỘI DUNG KHÁC")
 
         # Mong đợi: hoặc HTTP 409, hoặc redirect kèm flash error (409 → redirect)
-        assert r2.status_code in (302, 409), (
-            f"Mong 409 hoặc redirect có lỗi, nhận {r2.status_code}"
-        )
+        assert r2.status_code in (302, 409), f"Mong 409 hoặc redirect có lỗi, nhận {r2.status_code}"
         if r2.status_code == 302:
             with client.session_transaction() as sess_data:
                 flashes = dict(sess_data.get("_flashes", []))
                 has_error = any(
-                    "key" in v.lower() or "idempotency" in v.lower() or "khác" in v
-                    for v in flashes.values()
+                    "key" in v.lower() or "idempotency" in v.lower() or "khác" in v for v in flashes.values()
                 )
-                assert has_error, (
-                    f"Mong flash error về payload mismatch nhưng không tìm thấy. "
-                    f"Flashes: {flashes}"
-                )
+                assert has_error, f"Mong flash error về payload mismatch nhưng không tìm thấy. Flashes: {flashes}"
 
 
 class TestFormIntegration:
@@ -301,9 +280,7 @@ class TestFormIntegration:
         resp = client.get("/assignments/1")
         assert resp.status_code == 200
         html = resp.data.decode("utf-8", errors="ignore")
-        assert 'name="idempotency_key"' in html, (
-            "Form nộp bài thiếu trường ẩn idempotency_key"
-        )
+        assert 'name="idempotency_key"' in html, "Form nộp bài thiếu trường ẩn idempotency_key"
 
     def test_form_includes_submit_button_with_id(self, webapp, client):
         """Nút submit phải có id để script JS có thể disable sau khi click."""
@@ -314,3 +291,35 @@ class TestFormIntegration:
         assert 'id="submitBtn"' in html, (
             "Nút submit thiếu id='submitBtn' — script chống double-click sẽ không hoạt động"
         )
+
+
+class TestKeyValidationAndResourceScoping:
+    """Kiểm tra validation độ dài key và phân biệt resource."""
+
+    def test_oversized_key_rejected(self, webapp, client):
+        """Key vượt quá 128 ký tự phải bị từ chối, không gây lỗi database."""
+        login(client)
+        long_key = "k" * 200
+        resp = submit_assignment(client, idem_key=long_key, text="oversized key test")
+        assert resp.status_code == 302
+        with client.session_transaction() as sess_data:
+            flashes = dict(sess_data.get("_flashes", []))
+            assert any("128" in v or "không hợp lệ" in v for v in flashes.values())
+
+    def test_cross_assignment_key_reuse_detected_as_mismatch(self, webapp, client):
+        """Cùng key nhưng nộp cho assignment khác phải bị phát hiện MISMATCH (không replay nhầm)."""
+        login(client)
+        key = str(uuid.uuid4())
+        # Nộp bài tập 1
+        r1 = submit_assignment(client, assignment_id=1, idem_key=key, text="Cùng nội dung")
+        assert r1.status_code == 302
+
+        # Nộp bài tập 2 với cùng key và cùng nội dung
+        r2 = submit_assignment(client, assignment_id=2, idem_key=key, text="Cùng nội dung")
+        assert r2.status_code in (302, 409)
+        # Header X-Idempotent-Replay KHÔNG được phép xuất hiện (không được coi là replay)
+        assert r2.headers.get("X-Idempotent-Replay") != "true"
+        if r2.status_code == 302:
+            with client.session_transaction() as sess_data:
+                flashes = dict(sess_data.get("_flashes", []))
+                assert any("idempotency" in v.lower() or "khác" in v for v in flashes.values())
