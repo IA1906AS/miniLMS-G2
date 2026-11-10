@@ -31,6 +31,12 @@ from web.grade_service import (
     GradeValidationError,
     update_submission_grade,
 )
+from web.idempotency import (
+    begin_idempotent_request,
+    complete_idempotent_request,
+    compute_request_hash,
+    fail_idempotent_request,
+)
 from web.models import (
     ROLE_ADMIN,
     ROLE_INSTRUCTOR,
@@ -420,8 +426,25 @@ def _assignment_context(sess: Session, actor: dict[str, Any], assignment_id: int
 @bp.post("/assignments/<int:assignment_id>/submit")
 @role_required(ROLE_STUDENT)
 def assignment_submit(assignment_id: int) -> Response:
+    """Nộp hoặc cập nhật bài tập — được bảo vệ bởi Idempotency Key.
+
+    Luồng Idempotency Key (Defensive Pattern #2):
+      1. Client gửi trường ẩn ``idempotency_key`` (UUID v4, sinh bởi JS).
+      2. Server tính SHA-256 của payload và cố INSERT bản ghi PENDING.
+      3. Tuỳ trạng thái trả về:
+         - NEW      → xử lý nghiệp vụ bình thường rồi đánh dấu COMPLETED.
+         - PENDING  → 409 Conflict (đang có request song song cùng key).  [I02]
+         - REPLAY   → replay redirect cũ, không lưu file mới.             [I01]
+         - MISMATCH → 409 (cùng key nhưng payload khác).
+         - FAILED   → cho phép retry (lỗi hệ thống trước đó).
+    """
     actor = current_user()
     assert actor is not None
+
+    redirect_target = url_for("quiz.assignment_detail", assignment_id=assignment_id)
+
+    # --- Lấy Idempotency-Key từ form hoặc HTTP header ---
+    idem_key = (request.form.get("idempotency_key") or "").strip() or request.headers.get("Idempotency-Key", "").strip()
 
     with get_db().session() as sess:
         assignment = sess.get(Assignment, assignment_id)
@@ -433,15 +456,70 @@ def assignment_submit(assignment_id: int) -> Response:
         # Spec mục 4: chỉ nhận bài trong thời hạn quy định.
         if assignment.due_at is not None and utcnow() > assignment.due_at:
             flash("Đã quá hạn nộp bài, không thể nộp.", "error")
-            return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
+            return redirect(redirect_target)
 
         text = (request.form.get("text") or "").strip()
         file = request.files.get("file")
         has_file = file is not None and file.filename is not None and file.filename != ""
         if not text and not has_file:
             flash("Cần nhập nội dung hoặc đính kèm tệp bài làm.", "error")
-            return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
+            return redirect(redirect_target)
 
+        # -------------------------------------------------------------------
+        # Idempotency Key guard
+        # Chỉ áp dụng khi client gửi kèm key (form web + Burp Repeater + API).
+        # Nếu không có key: fallback về hành vi cũ (backward-compat).
+        # -------------------------------------------------------------------
+        if idem_key and len(idem_key) > 128:
+            flash("Idempotency Key không hợp lệ (vượt quá 128 ký tự).", "error")
+            return redirect(redirect_target)
+
+        if idem_key:
+            # Tính hash payload TRƯỚC khi lưu file (stream chưa bị đọc).
+            req_hash = compute_request_hash(text, file if has_file else None)
+            resource = f"assignment:{assignment_id}:submit"
+
+            status, idem_record = begin_idempotent_request(
+                sess,
+                idem_key=idem_key,
+                student_id=actor["id"],
+                resource=resource,
+                request_hash=req_hash,
+            )
+
+            if status == "PENDING":
+                # [I02 FIX] Request song song cùng key đang được xử lý → 409
+                flash(
+                    "Yêu cầu nộp bài đang được xử lý, vui lòng chờ trong giây lát.",
+                    "error",
+                )
+                return redirect(redirect_target), 409  # type: ignore[return-value]
+
+            if status == "REPLAY":
+                # [I01 FIX] Request lặp lại với cùng key & payload →
+                # replay redirect cũ, KHÔNG lưu file mới, KHÔNG đổi submitted_at.
+                replay_loc = idem_record.response_location if idem_record else redirect_target
+                flash("Bài nộp đã được ghi nhận trước đó (yêu cầu lặp lại).", "info")
+                resp = redirect(replay_loc or redirect_target)
+                resp.headers["X-Idempotent-Replay"] = "true"
+                return resp
+
+            if status == "MISMATCH":
+                # Cùng key nhưng payload khác → từ chối
+                flash(
+                    "Idempotency Key đã được dùng cho một yêu cầu khác. Vui lòng tải lại trang và nộp lại.",
+                    "error",
+                )
+                return redirect(redirect_target), 409  # type: ignore[return-value]
+
+            # status == "NEW" hoặc "FAILED" → tiến hành xử lý nghiệp vụ
+            # idem_record đã ở trạng thái PENDING trong DB
+        else:
+            idem_record = None
+
+        # -------------------------------------------------------------------
+        # Nghiệp vụ nộp bài — chỉ chạy khi là request hợp lệ / mới
+        # -------------------------------------------------------------------
         submission = sess.scalars(
             select(Submission).where(
                 Submission.assignment_id == assignment_id,
@@ -453,6 +531,7 @@ def assignment_submit(assignment_id: int) -> Response:
         new_rel: str | None = None
         if has_file:
             try:
+                # save_upload gọi SAU khi đã xác nhận đây là request mới (không lặp)
                 new_rel = save_upload(
                     file,
                     "submissions",
@@ -460,8 +539,10 @@ def assignment_submit(assignment_id: int) -> Response:
                     max_bytes=MAX_DOC_BYTES,
                 )
             except ValueError as exc:
+                if idem_record is not None:
+                    fail_idempotent_request(sess, idem_record)
                 flash(str(exc), "error")
-                return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
+                return redirect(redirect_target)
 
         if submission is None:
             sess.add(
@@ -477,9 +558,15 @@ def assignment_submit(assignment_id: int) -> Response:
             submission.text = text or None
             if new_rel is not None:
                 submission.file_path = new_rel
+            # [I01 FIX] Chỉ cập nhật submitted_at khi đây là request MỚI hợp lệ,
+            # không phải request lặp — request lặp đã bị chặn ở khối REPLAY trên.
             submission.submitted_at = utcnow()
             flash("Đã cập nhật bài nộp.", "success")
         sess.flush()
+
+        # Đánh dấu COMPLETED + lưu redirect target để replay sau này
+        if idem_record is not None:
+            complete_idempotent_request(sess, idem_record, redirect_target)
 
     if new_rel is not None and old_file:
         delete_file(old_file)
@@ -490,7 +577,7 @@ def assignment_submit(assignment_id: int) -> Response:
         file=new_rel,
     )
 
-    return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
+    return redirect(redirect_target)
 
 
 @bp.post("/assignments/<int:assignment_id>/submissions/<int:submission_id>/grade")

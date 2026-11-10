@@ -28,12 +28,13 @@ dev = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"          # khớp Python 3.12
+extend-exclude = ["scratch"]
 
 [tool.ruff.lint]
 # E/W: style  F: lỗi import/biến  I: sắp xếp import
 # B: bugbear  UP: nâng cấp syntax  SIM: đơn giản hóa  C4: comprehension  RUF: rule riêng ruff
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF"]
-ignore = ["RUF001"]                # ký tự unicode trong tiếng Việt (en dash, ...)
+ignore = ["RUF001", "RUF002", "RUF003"] # ký tự unicode trong tiếng Việt (en dash, ...)
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401"]              # bỏ qua import chưa dùng trong test

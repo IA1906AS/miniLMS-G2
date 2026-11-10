@@ -28,3 +28,6 @@ htmlcov/
 instance/
 *.db
 *.db-journal
+
+# Scratch & exploratory scripts
+scratch/
