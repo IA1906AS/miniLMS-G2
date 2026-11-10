@@ -17,7 +17,7 @@ import jwt
 from flask import current_app, g, redirect, request, url_for
 from werkzeug.wrappers import Response
 
-from app.auth import decode_token, verify_password
+from app.auth import decode_token, hash_password, verify_password
 from app.errors import AccountLocked, AppError
 from app.store import get_store
 from web.database import User, get_db
@@ -38,6 +38,9 @@ ROLE_HOME = {
     ROLE_STUDENT: "main.dashboard",
     ROLE_GUEST: "main.home",
 }
+
+#: Hash giả để so sánh khi email không tồn tại (cân bằng thời gian).
+_DUMMY_HASH = hash_password("dummy-password-for-timing")
 
 
 class AuthError(Exception):
@@ -183,7 +186,12 @@ def authenticate(email: str, password: str) -> dict[str, Any] | None:
 
     with get_db().session() as sess:
         user = sess.query(User).filter(User.email == normalized).one_or_none()
-        if user is None or not verify_password(password, user.password_hash):
+        if user is None:
+            # Vẫn chạy bcrypt để thời gian phản hồi không lộ email có tồn tại.
+            verify_password(password, _DUMMY_HASH)
+            store.record_login_failure(normalized, now)
+            return None
+        if not verify_password(password, user.password_hash):
             store.record_login_failure(normalized, now)
             return None
         if user.status != USER_STATUS_ACTIVE:

@@ -35,9 +35,9 @@
       <h1>{{ lesson.title }}</h1>
 
       {% if lesson.kind == 'video' and lesson.media_url %}
-        <div class="video-holder"><a href="{{ lesson.media_url }}" target="_blank" rel="noopener">▶ Mở video bài giảng</a></div>
+        <div class="video-holder"><a href="{{ lesson.media_url|safe_url }}" target="_blank" rel="noopener">▶ Mở video bài giảng</a></div>
       {% elif lesson.kind == 'pdf' and lesson.media_url %}
-        <p><a class="btn ghost" href="{{ lesson.media_url }}" target="_blank" rel="noopener">📄 Tải tài liệu PDF</a></p>
+        <p><a class="btn ghost" href="{{ lesson.media_url|safe_url }}" target="_blank" rel="noopener">📄 Tải tài liệu PDF</a></p>
       {% endif %}
 
       {% if lesson.content %}
