@@ -1,8 +1,30 @@
-"""Nghiệp vụ sửa điểm với Optimistic Locking (defensive pattern #3).
+"""Nghiệp vụ sửa điểm — nơi duy nhất chứa logic chống 3 lỗi V01-V03.
 
-Mọi thay đổi điểm đều phải gửi kèm ``version`` mà client đã đọc. Nếu bản ghi
-đã bị người khác sửa (version lệch) thì từ chối bằng ``GradeConflict`` — không
-ghi đè âm thầm. Đồng thời chuẩn hoá & kiểm tra miền điểm ở phía server.
+Kiến trúc: route (quiz.py/admin.py) chỉ kiểm tra quyền rồi gọi service này.
+Mọi entry point sửa điểm đều đi qua đây để không route nào quên kiểm tra.
+
+V01 — Lost update (Optimistic Locking):
+    Client gửi kèm ``version`` đã đọc. Service phát một câu
+    ``UPDATE ... WHERE id = ? AND version = ?`` (compare-and-set).
+    Nếu version đã bị người khác đổi, câu UPDATE khớp 0 dòng
+    (``rowcount == 0``) và service ném ``GradeConflict`` để route trả 409.
+    Không đọc-rồi-ghi bằng Python vì vẫn có khe hở giữa đọc và ghi.
+
+V02 — 500 khi sửa điểm quiz:
+    Model ``QuizAttempt`` chỉ có ``quiz_id``, không có relationship ``quiz``.
+    Service truy vấn ``Quiz`` theo khoá ngoại rồi mới tính ``passed``.
+
+V03 — Dữ liệu điểm không hợp lệ / mất nhận xét:
+    ``parse_score`` chặn NaN, Infinity, giá trị ngoài [0, max_score] và
+    chấp nhận dấu phẩy thập phân. ``feedback`` chỉ bị ghi khi client thực
+    sự gửi trường này (khác ``None``).
+
+Luồng một lần sửa điểm:
+    route kiểm tra quyền
+    -> parse_version / parse_score (validate, chưa chạm DB)
+    -> UPDATE có điều kiện version (nguyên tử ở DB)
+    -> tăng version + ghi audit
+    -> route trả 302 (thành công) hoặc 409 (xung đột) / flash lỗi (validate).
 """
 
 from __future__ import annotations
@@ -49,7 +71,12 @@ class GradeResult:
 
 
 def parse_version(raw: Any) -> int:
-    """Đọc version client gửi lên; bắt buộc phải có."""
+    """V01: đọc ``version`` client gửi lên — bắt buộc và phải là số nguyên >= 1.
+
+    Thiếu version nghĩa là client không chứng minh được mình đã đọc bản ghi
+    nào, nên từ chối luôn thay vì mặc định version = 1 (nếu mặc định sẽ vô
+    tình bỏ qua Optimistic Locking).
+    """
     if raw is None or str(raw).strip() == "":
         raise GradeValidationError("Thiếu phiên bản bản ghi (version). Hãy tải lại trang rồi thử lại.")
     try:
@@ -62,7 +89,17 @@ def parse_version(raw: Any) -> int:
 
 
 def parse_score(raw: Any, max_score: float) -> float:
-    """Chuẩn hoá và kiểm tra điểm trong [0, max_score]."""
+    """V03: chuẩn hoá và kiểm tra điểm trước khi ghi DB.
+
+    Thứ tự kiểm tra cố ý:
+    1. rỗng -> lỗi;
+    2. đổi dấu phẩy thành dấu chấm (người Việt nhập 7,5);
+    3. ép float, bắt ValueError;
+    4. ``math.isfinite`` chặn NaN/Infinity (NaN không bị các phép so sánh
+       ``< 0`` hay ``> max`` chặn vì mọi so sánh với NaN đều False);
+    5. chặn ngoài [0, max_score];
+    6. làm tròn 2 chữ số thập phân.
+    """
     if raw is None or str(raw).strip() == "":
         raise GradeValidationError("Điểm là bắt buộc.")
     text = str(raw).strip().replace(",", ".")
@@ -84,15 +121,21 @@ def update_quiz_grade(
     score_raw: Any,
     expected_version_raw: Any,
 ) -> GradeResult:
+    """Sửa điểm quiz: V02 (lấy Quiz theo FK) + V01 (version) + V03 (miền điểm)."""
     attempt = sess.get(QuizAttempt, attempt_id)
     if attempt is None:
         raise GradeNotFound("Không tìm thấy lượt làm bài.")
+
+    # V02: QuizAttempt chỉ có quiz_id, KHÔNG có relationship "quiz".
+    # Truy vấn thẳng bảng quizzes theo khoá ngoại thay vì attempt.quiz.
     quiz = sess.get(Quiz, attempt.quiz_id)
     if quiz is None:
         raise GradeNotFound("Không tìm thấy bài kiểm tra.")
 
+    # V01: version client gửi phải khớp version đang có.
     expected = parse_version(expected_version_raw)
     if attempt.version != expected:
+        # Kiểm tra sớm để trả lỗi nhanh; UPDATE bên dưới mới là chốt chặn nguyên tử.
         audit_record(
             "GRADE_CONFLICT",
             f"quiz_attempt:{attempt_id}",
@@ -103,10 +146,13 @@ def update_quiz_grade(
         )
         raise GradeConflict(attempt.score, attempt.version)
 
+    # V03: validate trước khi UPDATE; NaN/ngoài miền không bao giờ chạm DB.
     new_score = parse_score(score_raw, QUIZ_MAX_SCORE)
     old_score = attempt.score
 
-    # Compare-and-set nguyên tử: chỉ ghi khi version vẫn đúng.
+    # V01: compare-and-set nguyên tử.
+    # Chỉ UPDATE nếu version vẫn đúng; DB tự đảm bảo hai request đồng thời
+    # không cùng ghi đè (một request sẽ khớp 0 dòng).
     result = sess.execute(
         update(QuizAttempt)
         .where(
@@ -120,6 +166,8 @@ def update_quiz_grade(
         )
         .execution_options(synchronize_session=False)
     )
+
+    # rowcount == 0: version đã bị người khác đổi giữa lúc đọc và lúc ghi.
     if result.rowcount == 0:  # type: ignore[attr-defined]
         sess.expire_all()
         current = sess.get(QuizAttempt, attempt_id)
@@ -135,6 +183,7 @@ def update_quiz_grade(
         )
         raise GradeConflict(current.score, current.version)
 
+    # Bulk UPDATE không cập nhật object ORM đang giữ; expire để lần đọc sau lấy dữ liệu mới.
     sess.expire(attempt)
     audit_record(
         "GRADE_UPDATE",
@@ -155,15 +204,20 @@ def update_submission_grade(
     feedback_raw: Any,
     expected_version_raw: Any,
 ) -> GradeResult:
+    """Sửa điểm bài nộp: V01 (version) + V03 (miền điểm, giữ nhận xét)."""
     submission = sess.get(Submission, submission_id)
     if submission is None:
         raise GradeNotFound("Không tìm thấy bài nộp.")
+
+    # Lấy bài tập để biết max_score thật (mỗi bài có thang điểm riêng).
     assignment = sess.get(Assignment, submission.assignment_id)
     if assignment is None:
         raise GradeNotFound("Không tìm thấy bài tập.")
 
+    # V01: version client gửi phải khớp version đang có.
     expected = parse_version(expected_version_raw)
     if submission.version != expected:
+        # Fast-fail; UPDATE bên dưới vẫn là chốt chặn nguyên tử.
         audit_record(
             "GRADE_CONFLICT",
             f"submission:{submission_id}",
@@ -174,19 +228,25 @@ def update_submission_grade(
         )
         raise GradeConflict(submission.score, submission.version)
 
+    # V03: validate trước UPDATE; 99/-1/NaN/Infinity bị chặn tại đây.
     new_score = parse_score(score_raw, assignment.max_score)
     old_score = submission.score
+
     values: dict[str, Any] = {
         "score": new_score,
         "graded_at": utcnow(),
-        "version": expected + 1,
+        "version": expected + 1,  # V01: mỗi lần ghi thành công tăng version
     }
-    # Chỉ cập nhật nhận xét khi client thực sự gửi trường này.
+    # V03: chỉ ghi feedback khi client thực sự gửi trường này.
+    # - feedback_raw is None  -> không gửi => giữ nguyên nhận xét cũ
+    # - feedback_raw == ""    -> người dùng chủ động xoá nhận xét
     if feedback_raw is not None:
         text = str(feedback_raw).strip()
         values["feedback"] = text or None
 
-    # Compare-and-set nguyên tử: chỉ ghi khi version vẫn đúng.
+    # V01: compare-and-set nguyên tử.
+    # Câu UPDATE chỉ khớp khi id và version cùng đúng; nếu người khác đã
+    # sửa trước, rowcount = 0 và không có dữ liệu nào bị ghi đè.
     result = sess.execute(
         update(Submission)
         .where(
@@ -196,6 +256,8 @@ def update_submission_grade(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
+
+    # rowcount == 0: version đã bị đổi giữa lúc đọc và lúc ghi.
     if result.rowcount == 0:  # type: ignore[attr-defined]
         sess.expire_all()
         current = sess.get(Submission, submission_id)
@@ -211,6 +273,7 @@ def update_submission_grade(
         )
         raise GradeConflict(current.score, current.version)
 
+    # Bulk UPDATE không đồng bộ object ORM; expire để lần đọc sau lấy dữ liệu mới.
     sess.expire(submission)
     audit_record(
         "GRADE_UPDATE",

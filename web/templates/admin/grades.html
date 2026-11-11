@@ -20,6 +20,7 @@
           <td>{{ course.title }}</td>
           <td>
             <form method="post" action="{{ url_for('admin.grade_quiz_adjust', attempt_id=attempt.id) }}" class="grade-form">
+              {# V01: gửi kèm version đang xem; service chỉ UPDATE khi version còn khớp #}
               <input type="hidden" name="version" value="{{ attempt.version }}">
               <input type="number" name="score" step="0.5" min="0" max="10" value="{{ attempt.score }}" required style="width: 60px;">
               <button type="submit" class="btn small">Lưu</button>
@@ -48,6 +49,7 @@
           <td>{{ course.title }}</td>
           <td>
             <form method="post" action="{{ url_for('admin.grade_assignment_adjust', submission_id=submission.id) }}" class="grade-form">
+              {# V01: version của bài nộp; lệch version => 409, không ghi đè #}
               <input type="hidden" name="version" value="{{ submission.version }}">
               <input type="number" name="score" step="0.5" min="0" max="{{ assignment.max_score }}" value="{{ submission.score if submission.score is not none else '' }}" required style="width: 60px;">
               <input type="text" name="feedback" placeholder="Nhận xét" value="{{ submission.feedback or '' }}" style="width: 120px;">
