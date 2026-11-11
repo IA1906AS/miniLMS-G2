@@ -583,6 +583,13 @@ def assignment_submit(assignment_id: int) -> Response:
 @bp.post("/assignments/<int:assignment_id>/submissions/<int:submission_id>/grade")
 @role_required(ROLE_ADMIN, ROLE_INSTRUCTOR)
 def assignment_grade(assignment_id: int, submission_id: int) -> Response | tuple[str, int]:
+    """Giảng viên/admin chấm điểm một bài nộp.
+
+    V01: form gửi kèm ``version``; service UPDATE có điều kiện version,
+         lệch version -> GradeConflict -> HTTP 409.
+    V03: service validate điểm theo ``assignment.max_score`` và chỉ ghi
+         feedback khi client thực sự gửi trường này.
+    """
     actor = current_user()
     assert actor is not None
 
@@ -591,10 +598,13 @@ def assignment_grade(assignment_id: int, submission_id: int) -> Response | tuple
         submission = sess.get(Submission, submission_id)
         if assignment is None or submission is None:
             abort(404)
+        # Quyền được kiểm tra theo khoá học của assignment trên URL.
         if not can_manage(sess, actor, assignment.course_id):
             abort(403)
 
         try:
+            # Dùng chung service với route admin để mọi entry point có cùng
+            # logic V01 (version) và V03 (validate + giữ feedback).
             update_submission_grade(
                 sess,
                 actor,
@@ -604,11 +614,13 @@ def assignment_grade(assignment_id: int, submission_id: int) -> Response | tuple
                 request.form.get("version"),
             )
         except GradeValidationError as exc:
+            # V03: dữ liệu sai -> không ghi DB, quay lại trang bài nộp.
             flash(str(exc), "error")
             return redirect(url_for("quiz.assignment_detail", assignment_id=assignment_id))
         except GradeNotFound:
             abort(404)
         except GradeConflict as exc:
+            # V01: người khác đã sửa -> render lại trang với 409.
             context = _assignment_context(sess, actor, assignment_id)
             context["conflict"] = str(exc)
             return (

@@ -44,7 +44,8 @@ def main() -> int:
                 )
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_sender_id ON notifications (sender_id)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_course_id ON notifications (course_id)"))
-                # Optimistic locking cho sửa điểm
+                # V01 — Optimistic Locking: thêm cột version cho các bảng sửa điểm.
+                # DEFAULT 1 để bản ghi cũ có version hợp lệ ngay sau migration.
                 conn.execute(
                     text("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
                 )
@@ -56,6 +57,7 @@ def main() -> int:
                 if "enroll_code" not in cols:
                     conn.execute(text("ALTER TABLE courses ADD COLUMN enroll_code VARCHAR(20)"))
                 conn.execute(text("UPDATE courses SET enroll_code = upper(id) || '-2026' WHERE enroll_code IS NULL"))
+                # SQLite (dev/test): chỉ thêm cột nếu chưa có — SQLite không hỗ trợ IF NOT EXISTS cho cột.
                 for table in ("submissions", "quiz_attempts"):
                     tcols = [r[1] for r in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()]
                     if "version" not in tcols:

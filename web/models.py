@@ -358,7 +358,9 @@ class QuizAttempt(Base):
     score: Mapped[float] = mapped_column(Float, default=0.0)
     passed: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default="IN_PROGRESS")
-    #: Optimistic locking cho nghiệp vụ sửa điểm.
+    # V01 — Optimistic Locking:
+    # Client đọc version này, gửi lại khi sửa điểm. Service chỉ UPDATE khi
+    # version còn khớp; lệch version => 409, không ghi đè (xem grade_service.py).
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
@@ -397,7 +399,9 @@ class Submission(Base):
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text(), nullable=True)
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    #: Optimistic locking cho nghiệp vụ sửa điểm.
+    # V01 — Optimistic Locking:
+    # Form chấm bài gửi kèm version. Service UPDATE có điều kiện version,
+    # rowcount = 0 nghĩa là đã có người sửa trước => 409 Conflict.
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 

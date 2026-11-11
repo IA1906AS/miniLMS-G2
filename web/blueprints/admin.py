@@ -657,12 +657,18 @@ def _grades_context(sess: Session) -> dict[str, Any]:
 @bp.post("/grades/quiz/<int:attempt_id>/adjust")
 @admin_required
 def grade_quiz_adjust(attempt_id: int) -> Response | tuple[str, int]:
-    """Chỉnh sửa điểm quiz (có kiểm tra version)."""
+    """Admin sửa điểm quiz.
+
+    V01: bắt buộc client gửi ``version``; service UPDATE có điều kiện version.
+    V02: service lấy Quiz theo quiz_id (không dùng attempt.quiz).
+    V03: service validate điểm trong [0, 10] trước khi ghi.
+    """
     actor = current_user()
     assert actor is not None
 
     with get_db().session() as sess:
         try:
+            # Toàn bộ logic V01/V02/V03 nằm trong service dùng chung.
             update_quiz_grade(
                 sess,
                 actor,
@@ -671,11 +677,13 @@ def grade_quiz_adjust(attempt_id: int) -> Response | tuple[str, int]:
                 request.form.get("version"),
             )
         except GradeValidationError as exc:
+            # V03: điểm sai hoặc thiếu version -> không ghi DB, quay lại kèm thông báo.
             flash(str(exc), "error")
             return redirect(url_for("admin.grades"))
         except GradeNotFound:
             abort(404)
         except GradeConflict as exc:
+            # V01: version lệch -> render lại bảng điểm với HTTP 409.
             context = _grades_context(sess)
             context["conflict"] = str(exc)
             return render_template("admin/grades.html", **context), 409
@@ -687,7 +695,11 @@ def grade_quiz_adjust(attempt_id: int) -> Response | tuple[str, int]:
 @bp.post("/grades/assignment/<int:submission_id>/adjust")
 @admin_required
 def grade_assignment_adjust(submission_id: int) -> Response | tuple[str, int]:
-    """Chỉnh sửa điểm assignment (có kiểm tra version)."""
+    """Admin sửa điểm bài nộp.
+
+    V01: gửi kèm version, service compare-and-set.
+    V03: service validate [0, max_score]; không gửi feedback thì giữ nguyên.
+    """
     actor = current_user()
     assert actor is not None
 
@@ -702,11 +714,13 @@ def grade_assignment_adjust(submission_id: int) -> Response | tuple[str, int]:
                 request.form.get("version"),
             )
         except GradeValidationError as exc:
+            # V03: 99/-1/NaN/thiếu version -> không ghi DB.
             flash(str(exc), "error")
             return redirect(url_for("admin.grades"))
         except GradeNotFound:
             abort(404)
         except GradeConflict as exc:
+            # V01: người khác đã sửa trước -> 409, không ghi đè.
             context = _grades_context(sess)
             context["conflict"] = str(exc)
             return render_template("admin/grades.html", **context), 409

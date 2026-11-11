@@ -104,6 +104,7 @@
               <td>{{ row.submission.score if row.submission.score is not none else '—' }}</td>
               <td>
                 <form method="post" action="{{ url_for('quiz.assignment_grade', assignment_id=assignment.id, submission_id=row.submission.id) }}" class="grade-form">
+                  {# V01: gửi version hiện tại; nếu người khác đã sửa, server trả 409 #}
                   <input type="hidden" name="version" value="{{ row.submission.version }}">
                   <input type="number" name="score" step="0.5" min="0" max="{{ assignment.max_score }}" value="{{ row.submission.score if row.submission.score is not none else '' }}" required>
                   <input type="text" name="feedback" placeholder="Nhận xét" value="{{ row.submission.feedback or '' }}">
